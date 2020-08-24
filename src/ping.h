@@ -4,33 +4,41 @@
 #include <cstdint>
 
 #include <QByteArray>
+#include <QObject>
 #include <QString>
 #include <QMetaType>
 
-class Ping {
+class Ping : public QObject {
+    Q_OBJECT
 public:
-    Ping();
+    Ping(QString const& target, int timeout, QObject* parent = nullptr);
     virtual ~Ping();
 
     struct PingResponse {
         bool hasError;
         uint32_t errorCode;
         uint32_t roundTripTime;
+        QString target;
     };
 
-    bool ping(QString const& ip, int timeout, PingResponse& pingResponse);
-
+    bool ping(PingResponse& pingResponse);
 signals:
-    void pingDone(uint64_t pingId, Ping::PingResponse pingResponse);
+    void pingDone(quint64 pingId, Ping::PingResponse pingResponse);
 
 public slots:
-    void doPing(uint64_t pingId, QString const& targetIp, int timeout);
+    void doPing(quint64 pingId);
 
 private:
-    QByteArray sendBuffer;
-    QByteArray replyBuffer;
+    QString const mTarget;
+    QString const mTargetIp;
+    int const mTimeout;
 
-    uint64_t counter;
+    QByteArray mSendBuffer;
+    QByteArray mReplyBuffer;
+
+    quint64 mCounter;
+
+    static QString resolveHostname(QString const& hostname);
 };
 
 Q_DECLARE_METATYPE(Ping::PingResponse)

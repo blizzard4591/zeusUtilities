@@ -31,6 +31,7 @@ find_package(Qt5Core REQUIRED)
 find_package(Qt5Gui REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 find_package(Qt5Network REQUIRED)
+find_package(Qt5PrintSupport REQUIRED)
 
 
 # Add base folder for better inclusion paths
@@ -104,7 +105,7 @@ add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG
 
 
 if (MSVC)
-	set_target_properties(zeusDebug PROPERTIES LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\" /SUBSYSTEM:WINDOWS")
+	set_target_properties(zeusDebug PROPERTIES LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
 	set_target_properties(zeusDebug PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
 endif(MSVC)
 
@@ -113,6 +114,7 @@ target_link_libraries(zeusDebug Qt5::Core)
 target_link_libraries(zeusDebug Qt5::Gui)
 target_link_libraries(zeusDebug Qt5::Widgets)
 target_link_libraries(zeusDebug Qt5::Network)
+target_link_libraries(zeusDebug Qt5::PrintSupport)
 
 if(HAVE_WS2_32)
 	target_link_libraries(zeusDebug ws2_32)

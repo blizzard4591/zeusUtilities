@@ -16,21 +16,65 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <widget class="QLineEdit" name="lineEdit">
+     <layout class="QFormLayout" name="formLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="lblInterval">
+        <property name="text">
+         <string>Interval (ms):</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QSpinBox" name="spinInterval">
+        <property name="minimum">
+         <number>250</number>
+        </property>
+        <property name="maximum">
+         <number>15000</number>
+        </property>
+        <property name="singleStep">
+         <number>250</number>
+        </property>
+        <property name="value">
+         <number>1000</number>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="lblTargets">
+        <property name="text">
+         <string>Ping targets:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="edtTargets">
+        <property name="text">
+         <string>8.8.8.8,ts.zeusops.com</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QPushButton" name="btnStartStop">
       <property name="text">
-       <string>8.8.8.8</string>
+       <string>Start Measurement</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton">
+     <widget class="QLabel" name="lblLog">
       <property name="text">
-       <string>Ping</string>
+       <string>Log:</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QListWidget" name="listWidget"/>
+     <widget class="QListWidget" name="logWidget"/>
     </item>
    </layout>
   </widget>

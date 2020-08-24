@@ -1,10 +1,13 @@
 #include "mainwindow.h"
+
 #include <QApplication>
 
 #include "ping.h"
+#include <cstdint>
 
 int main(int argc, char *argv[]) {
     qRegisterMetaType<Ping::PingResponse>();
+    qRegisterMetaType<uint64_t>();
 
     QApplication a(argc, argv);
     MainWindow w;
