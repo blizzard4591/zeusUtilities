@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mPingCounter(0) {
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mPingCounter(0), mCpuLoad() {
     mUi->setupUi(this);
 
 	QObject::connect(mUi->btnStartStop, SIGNAL(clicked()), this, SLOT(onButtonStartStopClick()));
@@ -70,6 +70,20 @@ void MainWindow::onButtonStartStopClick() {
 }
 
 void MainWindow::onTimerTimeout() {
+	// CPU
+	mCpuLoad.update();
+	std::size_t const coreCount = mCpuLoad.getCoreCount();
+	QString loadString = "Load: ";
+	for (std::size_t i = 0; i < coreCount; ++i) {
+		if (i > 0) {
+			loadString += ", ";
+		}
+		loadString += QString("Core %1: %2").arg(i).arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'g', 2);
+	}
+	addLogItem(loadString);
+	return;
+
+	// Pings
 	addLogItem(QString("Pinging (round #%1)...").arg(mPingCounter));
 	for (int i = 0; i < mPings.size(); ++i) {
 		if (!QMetaObject::invokeMethod(mPings.at(i), "doPing", Qt::ConnectionType::QueuedConnection, Q_ARG(quint64, mPingCounter))) {

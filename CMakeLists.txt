@@ -126,7 +126,7 @@ if(HAVE_IPHLAPI)
 	target_link_libraries(zeusDebug iphlpapi)
 endif()
 
-# Link against libc++abi if requested.
-if (OPENMITTSU_LINK_LIBCXXABI)
-	target_link_libraries(zeusDebug "c++abi")
-endif(OPENMITTSU_LINK_LIBCXXABI)
+if (WIN32)
+	target_link_libraries(zeusDebug ntdll)
+endif()
+
