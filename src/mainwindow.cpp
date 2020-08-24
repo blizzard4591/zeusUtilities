@@ -70,7 +70,7 @@ void MainWindow::onButtonStartStopClick() {
 }
 
 void MainWindow::onTimerTimeout() {
-	addLogItem(QString("Pinging (round %1)...").arg(mPingCounter));
+	addLogItem(QString("Pinging (round #%1)...").arg(mPingCounter));
 	for (int i = 0; i < mPings.size(); ++i) {
 		if (!QMetaObject::invokeMethod(mPings.at(i), "doPing", Qt::ConnectionType::QueuedConnection, Q_ARG(quint64, mPingCounter))) {
 			std::cerr << "Failed to invoke ping method!" << std::endl;

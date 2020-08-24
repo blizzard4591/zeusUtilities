@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>ZeusOps Debug Utility</string>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -43,7 +43,7 @@
       <item row="1" column="0">
        <widget class="QLabel" name="lblTargets">
         <property name="text">
-         <string>Ping targets:</string>
+         <string>Ping Targets:</string>
         </property>
        </widget>
       </item>
@@ -69,7 +69,7 @@
     <item>
      <widget class="QLabel" name="lblLog">
       <property name="text">
-       <string>Log:</string>
+       <string>Internal Log:</string>
       </property>
      </widget>
     </item>
