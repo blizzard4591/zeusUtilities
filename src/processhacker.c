@@ -1,5 +1,17 @@
 #include "processhacker.h"
 
+
+ULONG WindowsVersion;
+
+PPH_LIST EtpGpuAdapterList;
+ULONG EtGpuTotalNodeCount = 0;
+ULONG EtGpuTotalSegmentCount = 0;
+ULONG EtGpuNextNodeIndex = 0;
+ULONG64 EtGpuDedicatedLimit = 0;
+ULONG64 EtGpuDedicatedUsage = 0;
+ULONG64 EtGpuSharedLimit = 0;
+ULONG64 EtGpuSharedUsage = 0;
+
 void EtGpuMonitorInitialization() {
 
 }
@@ -42,7 +54,7 @@ PVOID PhReAllocate(PVOID Memory, SIZE_T SizeOld, SIZE_T SizeNew) {
     return result;
 }
 
-bool EtpIsGpuSoftwareDevice(D3DKMT_HANDLE AdapterHandle) {
+BOOLEAN EtpIsGpuSoftwareDevice(D3DKMT_HANDLE AdapterHandle) {
     D3DKMT_ADAPTERTYPE adapterType;
 
     memset(&adapterType, 0, sizeof(D3DKMT_ADAPTERTYPE));
@@ -55,14 +67,14 @@ bool EtpIsGpuSoftwareDevice(D3DKMT_HANDLE AdapterHandle) {
     ))) {
         if (adapterType.SoftwareDevice) // adapterType.HybridIntegrated
         {
-            return true;
+            return TRUE;
         }
     }
 
-    return false;
+    return FALSE;
 }
 
-bool EtCloseAdapterHandle(D3DKMT_HANDLE AdapterHandle) {
+BOOLEAN EtCloseAdapterHandle(D3DKMT_HANDLE AdapterHandle) {
     D3DKMT_CLOSEADAPTER closeAdapter;
 
     memset(&closeAdapter, 0, sizeof(D3DKMT_CLOSEADAPTER));
@@ -97,18 +109,36 @@ PETP_GPU_ADAPTER EtpAllocateGpuAdapter(ULONG NumberOfSegments) {
     return adapter;
 }
 
-QDateTime fromFileTime(PFILETIME fileTime) {
-    // Definition of FILETIME from MSDN:
-    // Contains a 64-bit value representing the number of 100-nanosecond intervals since January 1, 1601 (UTC).
-    QDateTime origin(QDate(1601, 1, 1), QTime(0, 0, 0, 0), Qt::UTC);
+/**
+ * Creates a string object using a specified length.
+ *
+ * \param Buffer A null-terminated Unicode string.
+ * \param Length The length, in bytes, of the string.
+ */
+PPH_STRING PhCreateStringEx(
+    _In_opt_ PWCHAR Buffer,
+    _In_ SIZE_T Length
+) {
+    PPH_STRING string;
 
-    LARGE_INTEGER time;
-    time.HighPart = fileTime->dwHighDateTime;
-    time.LowPart = fileTime->dwLowDateTime;
+    string = malloc(
+        UFIELD_OFFSET(PH_STRING, Data) + Length + sizeof(UNICODE_NULL) // Null terminator for compatibility
+    );
 
-    qint64 const timeInMSecs = time.QuadPart / 10000;
+    if (string == NULL) {
+        return NULL;
+    }
 
-    return origin.addMSecs(timeInMSecs);
+    assert(!(Length & 1));
+    string->Length = Length;
+    string->Buffer = string->Data;
+    *(PWCHAR)PTR_ADD_OFFSET(string->Buffer, Length) = UNICODE_NULL;
+
+    if (Buffer) {
+        memcpy(string->Buffer, Buffer, Length);
+    }
+
+    return string;
 }
 
 PPH_STRING EtpQueryDeviceProperty(DEVINST DeviceHandle, CONST DEVPROPKEY* DeviceProperty) {
@@ -144,18 +174,16 @@ PPH_STRING EtpQueryDeviceProperty(DEVINST DeviceHandle, CONST DEVPROPKEY* Device
 
     if (result != CR_SUCCESS) {
         free(buffer);
-        return QString();
+        return NULL;
     }
 
     switch (propertyType) {
     case DEVPROP_TYPE_STRING:
     {
-        QString string;
+        PPH_STRING string;
 
-        std::wstring const wString((PWCHAR)buffer, bufferSize);
-        QString const string = QString::fromStdWString(wString);
-
-        //PhTrimToNullTerminatorString(string);
+        string = PhCreateStringEx((PWCHAR)buffer, bufferSize);
+        PhTrimToNullTerminatorString(string);
 
         free(buffer);
         return string;
@@ -163,7 +191,7 @@ PPH_STRING EtpQueryDeviceProperty(DEVINST DeviceHandle, CONST DEVPROPKEY* Device
     break;
     case DEVPROP_TYPE_FILETIME:
     {
-        QString string;
+        PPH_STRING string;
         PFILETIME fileTime;
         LARGE_INTEGER time;
         SYSTEMTIME systemTime;
@@ -172,8 +200,17 @@ PPH_STRING EtpQueryDeviceProperty(DEVINST DeviceHandle, CONST DEVPROPKEY* Device
         time.HighPart = fileTime->dwHighDateTime;
         time.LowPart = fileTime->dwLowDateTime;
 
-        QDateTime const dateTime = fromFileTime((PFILETIME)buffer);
-        string = dateTime.toString("dd.MM.yyyy hh:mm:ss");
+        PhLargeIntegerToLocalSystemTime(&systemTime, &time);
+
+        string = PhFormatDate(&systemTime, NULL);
+
+        //FILETIME newFileTime;
+        //SYSTEMTIME systemTime;
+        //
+        //FileTimeToLocalFileTime((PFILETIME)buffer, &newFileTime);
+        //FileTimeToSystemTime(&newFileTime, &systemTime);
+        //
+        //string = PhFormatDate(&systemTime, NULL);
 
         free(buffer);
         return string;
@@ -181,23 +218,27 @@ PPH_STRING EtpQueryDeviceProperty(DEVINST DeviceHandle, CONST DEVPROPKEY* Device
     break;
     case DEVPROP_TYPE_UINT32:
     {
-        QString string = QString::number(*(PULONG)buffer, 10);
+        PPH_STRING string;
 
-        free(buffer);
+        string = PhFormatUInt64(*(PULONG)buffer, FALSE);
+
+        PhFree(buffer);
         return string;
     }
     break;
     case DEVPROP_TYPE_UINT64:
     {
-        QString string = QString::number(*(PULONG64)buffer, 10);
+        PPH_STRING string;
 
-        free(buffer);
+        string = PhFormatUInt64(*(PULONG64)buffer, FALSE);
+
+        PhFree(buffer);
         return string;
     }
     break;
     }
 
-    return QString();
+    return NULL;
 }
 
 /**
@@ -343,14 +384,14 @@ ULONG64 EtpQueryGpuInstalledMemory(DEVINST DeviceHandle) {
     return installedMemory;
 }
 
-bool EtQueryDeviceProperties(QString const& DeviceInterface, QString* Description, QString* DriverDate, QString* DriverVersion, QString* LocationInfo, ULONG64* InstalledMemory) {
+BOOLEAN EtQueryDeviceProperties(PWSTR DeviceInterface, PPH_STRING* Description, PPH_STRING* DriverDate, PPH_STRING* DriverVersion, PPH_STRING* LocationInfo, ULONG64* InstalledMemory) {
     DEVPROPTYPE devicePropertyType;
     DEVINST deviceInstanceHandle;
     ULONG deviceInstanceIdLength = MAX_DEVICE_ID_LEN;
     WCHAR deviceInstanceId[MAX_DEVICE_ID_LEN];
 
     if (CM_Get_Device_Interface_PropertyW(
-        DeviceInterface.toStdWString().c_str(),
+        DeviceInterface,
         &DEVPKEY_Device_InstanceId,
         &devicePropertyType,
         (PBYTE)deviceInstanceId,
@@ -387,7 +428,7 @@ bool EtQueryDeviceProperties(QString const& DeviceInterface, QString* Descriptio
     return TRUE;
 }
 
-PETP_GPU_ADAPTER EtpAddDisplayAdapter(QString const& DeviceInterface, D3DKMT_HANDLE AdapterHandle, LUID AdapterLuid, ULONG NumberOfSegments, ULONG NumberOfNodes) {
+PETP_GPU_ADAPTER EtpAddDisplayAdapter(PWSTR DeviceInterface, D3DKMT_HANDLE AdapterHandle, LUID AdapterLuid, ULONG NumberOfSegments, ULONG NumberOfNodes) {
     PETP_GPU_ADAPTER adapter;
 
     adapter = EtpAllocateGpuAdapter(NumberOfSegments);
@@ -398,7 +439,7 @@ PETP_GPU_ADAPTER EtpAddDisplayAdapter(QString const& DeviceInterface, D3DKMT_HAN
     RtlInitializeBitMap(&adapter->ApertureBitMap, adapter->ApertureBitMapBuffer, NumberOfSegments);
 
     {
-        QString description;
+        PPH_STRING description;
 
         if (EtQueryDeviceProperties(DeviceInterface, &description, NULL, NULL, NULL, NULL)) {
             adapter->Description = description;
@@ -433,7 +474,7 @@ PETP_GPU_ADAPTER EtpAddDisplayAdapter(QString const& DeviceInterface, D3DKMT_HAN
     return adapter;
 }
 
-bool EtpInitializeD3DStatistics() {
+BOOLEAN EtpInitializeD3DStatistics() {
     PPH_LIST deviceAdapterList;
     PZZSTR deviceInterfaceList;
     ULONG deviceInterfaceListLength = 0;
@@ -442,12 +483,12 @@ bool EtpInitializeD3DStatistics() {
     D3DKMT_QUERYSTATISTICS queryStatistics;
 
     if (CM_Get_Device_Interface_List_Size(&deviceInterfaceListLength, (PGUID)&GUID_DISPLAY_DEVICE_ARRIVAL, NULL, CM_GET_DEVICE_INTERFACE_LIST_PRESENT) != CR_SUCCESS) {
-        return false;
+        return FALSE;
     }
 
     deviceInterfaceList = (PZZSTR)malloc(deviceInterfaceListLength * sizeof(WCHAR));
     if (deviceInterfaceList == 0) {
-        return false;
+        return FALSE;
     }
 
     memset(deviceInterfaceList, 0, deviceInterfaceListLength * sizeof(WCHAR));
@@ -460,7 +501,7 @@ bool EtpInitializeD3DStatistics() {
         CM_GET_DEVICE_INTERFACE_LIST_PRESENT
     ) != CR_SUCCESS) {
         free(deviceInterfaceList);
-        return false;
+        return FALSE;
     }
 
     deviceAdapterList = PhCreateList(10);
@@ -560,7 +601,7 @@ bool EtpInitializeD3DStatistics() {
     PhFree(deviceInterfaceList);
 
     if (EtGpuTotalNodeCount == 0)
-        return false;
+        return FALSE;
 
-    return true;
+    return TRUE;
 }

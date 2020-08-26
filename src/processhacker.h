@@ -8,9 +8,11 @@ extern "C" {
 #define INITGUID
 
 #include <Windows.h>
-#include <winternl.h>
+//#include <winternl.h>
 
 typedef GUID* PGUID;
+
+#include "phnt.h"
 
 typedef struct _PH_LIST {
     /** The number of items in the list. */
@@ -21,11 +23,6 @@ typedef struct _PH_LIST {
     PVOID* Items;
 } PH_LIST, * PPH_LIST;
 
-typedef struct _RTL_BITMAP {
-    ULONG SizeOfBitMap;
-    PULONG Buffer;
-} RTL_BITMAP, * PRTL_BITMAP;
-
 NTSYSAPI
     VOID
     NTAPI
@@ -34,6 +31,13 @@ NTSYSAPI
         _In_ PULONG BitMapBuffer,
         _In_ ULONG SizeOfBitMap
     );
+
+typedef struct _PH_STRINGREF {
+    /** The length, in bytes, of the string. */
+    SIZE_T Length;
+    /** The buffer containing the contents of the string. */
+    PWCH Buffer;
+} PH_STRINGREF, * PPH_STRINGREF;
 
 /**
  * A 16-bit string object, which supports UTF-16.
@@ -80,13 +84,6 @@ typedef struct _ETP_GPU_ADAPTER {
     ULONG ApertureBitMapBuffer[1];
 } ETP_GPU_ADAPTER, * PETP_GPU_ADAPTER;
 
-typedef struct _PH_STRINGREF {
-    /** The length, in bytes, of the string. */
-    SIZE_T Length;
-    /** The buffer containing the contents of the string. */
-    PWCH Buffer;
-} PH_STRINGREF, * PPH_STRINGREF;
-
 FORCEINLINE VOID PhInitializeStringRef(PPH_STRINGREF String, PWSTR Buffer) {
     String->Length = wcslen(Buffer) * sizeof(WCHAR);
     String->Buffer = Buffer;
@@ -103,6 +100,33 @@ FORCEINLINE BOOLEAN PhStringRefToUnicodeString(PPH_STRINGREF String, PUNICODE_ST
     UnicodeString->Buffer = String->Buffer;
 
     return String->Length <= UNICODE_STRING_MAX_BYTES;
+}
+
+/**
+ * Determines the length of the specified string, in characters.
+ *
+ * \param String The string.
+ */
+SIZE_T PhCountStringZ(
+    _In_ PWSTR String
+) {
+    return wcslen(String);
+}
+
+/**
+ * Updates a string object's length with its true length as determined by an embedded null
+ * terminator.
+ *
+ * \param String The string to modify.
+ *
+ * \remarks Use this function after modifying a string object's buffer manually.
+ */
+FORCEINLINE
+VOID
+PhTrimToNullTerminatorString(
+    _Inout_ PPH_STRING String
+) {
+    String->Length = PhCountStringZ(String->Buffer) * sizeof(WCHAR);
 }
 
 #define BYTES_NEEDED_FOR_BITS(Bits) ((((Bits) + sizeof(ULONG) * 8 - 1) / 8) & ~(SIZE_T)(sizeof(ULONG) - 1)) // divide round up
@@ -125,24 +149,102 @@ FORCEINLINE BOOLEAN PhStringRefToUnicodeString(PPH_STRINGREF String, PUNICODE_ST
 #define WINDOWS_10_20H1 109
 #define WINDOWS_NEW ULONG_MAX
 
-#include "ntd3dkmt.h"
 #include <cfgmgr32.h>
 #include <devpkey.h>
 #include <ntddvdeo.h>
+#include <ntstatus.h>
 
-#include "ntregapi.h"
-#include "ntrtl.h"
+// gpumon
 
-ULONG WindowsVersion;
+extern BOOLEAN EtGpuEnabled;
+extern BOOLEAN EtD3DEnabled;
+extern PPH_LIST EtpGpuAdapterList;
 
-PPH_LIST EtpGpuAdapterList;
-ULONG EtGpuTotalNodeCount = 0;
-ULONG EtGpuTotalSegmentCount = 0;
-ULONG EtGpuNextNodeIndex = 0;
-ULONG64 EtGpuDedicatedLimit = 0;
-ULONG64 EtGpuDedicatedUsage = 0;
-ULONG64 EtGpuSharedLimit = 0;
-ULONG64 EtGpuSharedUsage = 0;
+extern ULONG EtGpuTotalNodeCount;
+extern ULONG EtGpuTotalSegmentCount;
+extern ULONG64 EtGpuDedicatedLimit;
+extern ULONG64 EtGpuSharedLimit;
+
+typedef struct _PH_UINT64_DELTA {
+    ULONG64 Value;
+    ULONG64 Delta;
+} PH_UINT64_DELTA, * PPH_UINT64_DELTA;
+
+extern PH_UINT64_DELTA EtClockTotalRunningTimeDelta;
+extern LARGE_INTEGER EtClockTotalRunningTimeFrequency;
+extern FLOAT EtGpuNodeUsage;
+//extern PH_CIRCULAR_BUFFER_FLOAT EtGpuNodeHistory;
+//extern PH_CIRCULAR_BUFFER_ULONG EtMaxGpuNodeHistory; // ID of max. GPU usage process
+//extern PH_CIRCULAR_BUFFER_FLOAT EtMaxGpuNodeUsageHistory;
+
+extern PPH_UINT64_DELTA EtGpuNodesTotalRunningTimeDelta;
+//extern PPH_CIRCULAR_BUFFER_FLOAT EtGpuNodesHistory;
+
+extern ULONG64 EtGpuDedicatedUsage;
+extern ULONG64 EtGpuSharedUsage;
+//extern PH_CIRCULAR_BUFFER_ULONG64 EtGpuDedicatedHistory;
+//extern PH_CIRCULAR_BUFFER_ULONG64 EtGpuSharedHistory;
+
+VOID EtGpuMonitorInitialization(
+    VOID
+);
+
+NTSTATUS EtQueryAdapterInformation(
+    _In_ D3DKMT_HANDLE AdapterHandle,
+    _In_ KMTQUERYADAPTERINFOTYPE InformationClass,
+    _Out_writes_bytes_opt_(InformationLength) PVOID Information,
+    _In_ UINT32 InformationLength
+);
+
+BOOLEAN EtCloseAdapterHandle(
+    _In_ D3DKMT_HANDLE AdapterHandle
+);
+
+typedef struct _ET_PROCESS_GPU_STATISTICS {
+    ULONG SegmentCount;
+    ULONG NodeCount;
+
+    ULONG64 DedicatedCommitted;
+    ULONG64 SharedCommitted;
+
+    ULONG64 BytesAllocated;
+    ULONG64 BytesReserved;
+    ULONG64 WriteCombinedBytesAllocated;
+    ULONG64 WriteCombinedBytesReserved;
+    ULONG64 CachedBytesAllocated;
+    ULONG64 CachedBytesReserved;
+    ULONG64 SectionBytesAllocated;
+    ULONG64 SectionBytesReserved;
+
+    ULONG64 RunningTime;
+    ULONG64 ContextSwitches;
+} ET_PROCESS_GPU_STATISTICS, * PET_PROCESS_GPU_STATISTICS;
+
+VOID EtSaveGpuMonitorSettings(
+    VOID
+);
+
+ULONG EtGetGpuAdapterCount(
+    VOID
+);
+
+ULONG EtGetGpuAdapterIndexFromNodeIndex(
+    _In_ ULONG NodeIndex
+);
+
+PPH_STRING EtGetGpuAdapterNodeDescription(
+    _In_ ULONG Index,
+    _In_ ULONG NodeIndex
+);
+
+PPH_STRING EtGetGpuAdapterDescription(
+    _In_ ULONG Index
+);
+
+VOID EtQueryProcessGpuStatistics(
+    _In_ HANDLE ProcessHandle,
+    _Out_ PET_PROCESS_GPU_STATISTICS Statistics
+);
 
 PPH_LIST PhCreateList(ULONG InitialCapacity);
 void PhAddItemList(PPH_LIST List, PVOID Item);
@@ -168,8 +270,5 @@ BOOLEAN EtCloseAdapterHandle(D3DKMT_HANDLE AdapterHandle);
 }
 #endif
 
-#include <QDateTime>
-
-QDateTime fromFileTime(PFILETIME filetime);
 
 #endif

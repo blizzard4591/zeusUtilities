@@ -40,6 +40,7 @@ find_package(Qt5PrintSupport REQUIRED)
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
 include_directories("${PROJECT_SOURCE_DIR}/src/processhacker")
+include_directories("${PROJECT_SOURCE_DIR}/src/processhacker/phnt")
 
 
 if(CMAKE_COMPILER_IS_GNUCC)

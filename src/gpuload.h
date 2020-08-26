@@ -4,10 +4,8 @@
 #include <cstdint>
 #include <vector>
 
-#include <QDateTime>
 #include <QString>
 
-#include "processhacker.h"
 
 class GpuLoad {
 public:
