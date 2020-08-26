@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.8.12)
 
 set(CMAKE_SYSTEM_VERSION "10.0.19041.0" CACHE STRING INTERNAL FORCE)
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 # Set project name
 project (ZeusDebug CXX C)
@@ -47,13 +48,23 @@ link_directories("${PROJECT_BINARY_DIR}/installProcessHacker/lib")
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
 include_directories("${PROJECT_SOURCE_DIR}/src/processhacker")
-include_directories("${PROJECT_SOURCE_DIR}/src/processhacker/phnt")
 
+include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/sdk/include")
+include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/include")
 
 if(MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest /MP /Gz")
+
 	add_definitions(/DNOMINMAX)
 	add_definitions(/MP)
 	add_definitions(/std:c++latest)
+	add_definitions(/Gz)
+	
+	add_definitions(-DUNICODE)
+	add_definitions(-D_UNICODE)
+	
+	add_definitions(/D_PHLIB_)
+	add_definitions(/D_PHAPP_)
 endif()
 
 if (WIN32)
@@ -91,6 +102,8 @@ QT5_ADD_RESOURCES(ZEUSDEBUG_RESOURCESOURCES ${ZEUSDEBUG_RESOURCES})
 
 # Add the executables
 add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG_SOURCES_CPP} ${ZEUSDEBUG_RESOURCESOURCES} ${ZEUSDEBUG_FORMS_HEADERS})
+# "${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def"
+set_property(TARGET zeusDebug PROPERTY ENABLE_EXPORTS 1)
 
 
 if (MSVC)
@@ -118,6 +131,11 @@ endif()
 if (WIN32)
 	target_link_libraries(zeusDebug ntdll)
 	target_link_libraries(zeusDebug cfgmgr32)
+	target_link_libraries(zeusDebug Uxtheme)
+	target_link_libraries(zeusDebug winsta)
+	target_link_libraries(zeusDebug Winhttp)
+	target_link_libraries(zeusDebug Aclui)
 endif()
 
+target_link_libraries(zeusDebug phlib)
 target_link_libraries(zeusDebug processHacker)

@@ -4,9 +4,6 @@
 #include <cstdint>
 #include <vector>
 
-#include <locale>
-#include <codecvt>
-
 #include <Windows.h>
 #include <winternl.h>
 
@@ -29,8 +26,6 @@ private:
 
     void* mProcessInformation;
     std::size_t mProcessInformationSize;
-
-    static std::string ws2s(const std::wstring& wstr);
 };
 
 #endif

@@ -9,9 +9,9 @@
 #include <QString>
 #include <QDateTime>
 
-#include "processhacker.h"
+#include "main_ph.h"
 
-
+/*
 QDateTime fromFileTime(PFILETIME fileTime) {
     // Definition of FILETIME from MSDN:
     // Contains a 64-bit value representing the number of 100-nanosecond intervals since January 1, 1601 (UTC).
@@ -25,10 +25,12 @@ QDateTime fromFileTime(PFILETIME fileTime) {
 
     return origin.addMSecs(timeInMSecs);
 }
-
+*/
 
 GpuLoad::GpuLoad() : mIterationCount(0) {
     //
+    //HINSTANCE hInstance = (HINSTANCE)::GetModuleHandle(NULL);
+    //main_ph(hInstance);
 }
 
 GpuLoad::~GpuLoad() {

@@ -9,6 +9,7 @@
 
 #include "ping.h"
 #include "cpuload.h"
+#include "gpuload.h"
 
 namespace Ui {
     class MainWindow;
@@ -35,6 +36,8 @@ private:
     QVector<Ping*> mPings;
     QTimer mTimer;
     CpuLoad mCpuLoad;
+
+    GpuLoad mGpuLoad;
 
     void addLogItem(QString const& text);
 };

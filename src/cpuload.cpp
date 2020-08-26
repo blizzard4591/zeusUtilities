@@ -1,5 +1,6 @@
 #include "cpuload.h"
 
+#include <winternl.h>
 #include <ntstatus.h>
 
 #include <algorithm>
@@ -42,13 +43,6 @@ double CpuLoad::getCpuLoadOfCore(std::size_t core) const {
 
 std::size_t CpuLoad::getCoreCount() const {
     return mProcessorCount;
-}
-
-std::string CpuLoad::ws2s(std::wstring const& wstr) {
-    using convert_typeX = std::codecvt_utf8<wchar_t>;
-    std::wstring_convert<convert_typeX, wchar_t> converterX;
-
-    return converterX.to_bytes(wstr);
 }
 
 void CpuLoad::update() {

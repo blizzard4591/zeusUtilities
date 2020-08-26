@@ -6,7 +6,6 @@
 
 #include <QString>
 
-
 class GpuLoad {
 public:
     GpuLoad();
