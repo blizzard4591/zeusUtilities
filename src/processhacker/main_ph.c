@@ -493,6 +493,7 @@ static ULONG CALLBACK PhpUnhandledExceptionCallback(
     config.pButtons = buttons;
     config.nDefaultButton = IDCLOSE;
 
+    /*
     if (TaskDialogIndirect(
         &config,
         &result,
@@ -568,7 +569,7 @@ static ULONG CALLBACK PhpUnhandledExceptionCallback(
             }
             break;
         }
-    }
+    }*/
 
     RtlExitUserProcess(ExceptionInfo->ExceptionRecord->ExceptionCode);
 

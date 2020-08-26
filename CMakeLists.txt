@@ -65,6 +65,7 @@ if(MSVC)
 	
 	add_definitions(/D_PHLIB_)
 	add_definitions(/D_PHAPP_)
+	add_definitions(/DPHLIB_NO_DEFAULT_LIB)
 endif()
 
 if (WIN32)
@@ -130,11 +131,12 @@ endif()
 
 if (WIN32)
 	target_link_libraries(zeusDebug ntdll)
-	target_link_libraries(zeusDebug cfgmgr32)
+	target_link_libraries(zeusDebug Comctl32)
+	#target_link_libraries(zeusDebug cfgmgr32)
 	target_link_libraries(zeusDebug Uxtheme)
 	target_link_libraries(zeusDebug winsta)
 	target_link_libraries(zeusDebug Winhttp)
-	target_link_libraries(zeusDebug Aclui)
+	#target_link_libraries(zeusDebug Aclui)
 endif()
 
 target_link_libraries(zeusDebug phlib)
