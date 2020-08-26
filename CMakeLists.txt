@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.8.12)
 
-set(CMAKE_SYSTEM_VERSION "10.0.19041.0" CACHE TYPE INTERNAL FORCE)
+set(CMAKE_SYSTEM_VERSION "10.0.19041.0" CACHE STRING INTERNAL FORCE)
 
 # Set project name
 project (ZeusDebug CXX C)
@@ -35,6 +35,13 @@ find_package(Qt5Widgets REQUIRED)
 find_package(Qt5Network REQUIRED)
 find_package(Qt5PrintSupport REQUIRED)
 
+include(ExternalProject)
+ExternalProject_Add(processHackerProject 
+	SOURCE_DIR "${PROJECT_SOURCE_DIR}/thirdParty/processhacker" 
+	INSTALL_DIR "${PROJECT_BINARY_DIR}/installProcessHacker"
+	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+)
+link_directories("${PROJECT_BINARY_DIR}/installProcessHacker/lib")
 
 # Add base folder for better inclusion paths
 include_directories("${PROJECT_SOURCE_DIR}")
@@ -43,32 +50,10 @@ include_directories("${PROJECT_SOURCE_DIR}/src/processhacker")
 include_directories("${PROJECT_SOURCE_DIR}/src/processhacker/phnt")
 
 
-if(CMAKE_COMPILER_IS_GNUCC)
-    # Set standard flags for GCC
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -funroll-loops")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic")
-elseif(MSVC)
+if(MSVC)
 	add_definitions(/DNOMINMAX)
-	
-	# Disable "C:\Program Files (x86)\Windows Kits\8.1\Include\um\DbgHelp.h(1544): warning C4091: 'typedef ': ignored on left of '' when no variable is declared"
-	add_definitions(/wd4091)
-	
-	# For the Windows header mess
-	add_definitions(/D_WINSOCKAPI_)
-else(CLANG)
-	# As CLANG is not set as a variable, we need to set it in case we have not matched another compiler.
-	set (CLANG ON)
-    # Set standard flags for clang
-    set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -funroll-loops -O3")
-    if(UNIX AND NOT APPLE AND NOT OPENMITTSU_USE_LIBCXX)
-		set(CLANG_STDLIB libstdc++)
-    else()
-		set(CLANG_STDLIB libc++)
-		# Set up some Xcode specific settings
-		set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
-		set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
-    endif()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -stdlib=${CLANG_STDLIB} -Wall -pedantic -Wno-unused-variable -ftemplate-depth=1024")
+	add_definitions(/MP)
+	add_definitions(/std:c++latest)
 endif()
 
 if (WIN32)
@@ -135,3 +120,4 @@ if (WIN32)
 	target_link_libraries(zeusDebug cfgmgr32)
 endif()
 
+target_link_libraries(zeusDebug processHacker)
