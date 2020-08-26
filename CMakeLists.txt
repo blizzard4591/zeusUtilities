@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.8.12)
 
+set(CMAKE_SYSTEM_VERSION "10.0.19041.0" CACHE TYPE INTERNAL FORCE)
+
 # Set project name
 project (ZeusDebug CXX C)
 
@@ -37,6 +39,7 @@ find_package(Qt5PrintSupport REQUIRED)
 # Add base folder for better inclusion paths
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
+include_directories("${PROJECT_SOURCE_DIR}/src/processhacker")
 
 
 if(CMAKE_COMPILER_IS_GNUCC)
@@ -128,5 +131,6 @@ endif()
 
 if (WIN32)
 	target_link_libraries(zeusDebug ntdll)
+	target_link_libraries(zeusDebug cfgmgr32)
 endif()
 
