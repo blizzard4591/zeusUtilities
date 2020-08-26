@@ -10,6 +10,9 @@
 #include <QDateTime>
 
 #include "main_ph.h"
+extern "C" {
+#include "plugin_gpu.h"
+}
 
 /*
 QDateTime fromFileTime(PFILETIME fileTime) {
@@ -29,12 +32,14 @@ QDateTime fromFileTime(PFILETIME fileTime) {
 
 GpuLoad::GpuLoad() : mIterationCount(0) {
     //
-    //HINSTANCE hInstance = (HINSTANCE)::GetModuleHandle(NULL);
-    //main_ph(hInstance);
+    HINSTANCE hInstance = (HINSTANCE)::GetModuleHandle(NULL);
+    main_ph(hInstance);
+    pluginGpuInit(hInstance);
 }
 
 GpuLoad::~GpuLoad() {
     //
+    pluginGpuUnload();
 }
 
 double GpuLoad::getGpuLoadOfCore(std::size_t core) const {
@@ -46,6 +51,7 @@ std::size_t GpuLoad::getCoreCount() const {
 }
 
 void GpuLoad::update() {
+    updateProcesses();
 
     ++mIterationCount;
 }

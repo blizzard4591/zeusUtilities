@@ -95,6 +95,10 @@ static PPH_LIST DialogList = NULL;
 static PPH_LIST FilterList = NULL;
 static PH_AUTO_POOL BaseAutoPool;
 
+VOID main_ph_exit() {
+    RtlExitUserProcess(0);
+}
+
 INT main_ph(
     _In_ HINSTANCE Instance
     )
@@ -112,8 +116,8 @@ INT main_ph(
         return 1;
     if (!PhInitializeNamespacePolicy())
         return 1;
-    if (!PhInitializeMitigationPolicy())
-        return 1;
+    //if (!PhInitializeMitigationPolicy())
+    //    return 1;
     //if (!PhInitializeRestartPolicy())
     //    return 1;
 
@@ -128,6 +132,8 @@ INT main_ph(
 
     PhInitializeAutoPool(&BaseAutoPool);
 
+    PhInitializeAppSystem();
+    PhInitializeCallbacks();
     
     PhEmInitialization();
     PhTreeNewInitialization();
@@ -176,6 +182,8 @@ INT main_ph(
     }
 
     PhDrainAutoPool(&BaseAutoPool);
+
+    return 0;
 }
 
 LONG PhMainMessageLoop(

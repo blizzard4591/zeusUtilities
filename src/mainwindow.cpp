@@ -70,6 +70,10 @@ void MainWindow::onButtonStartStopClick() {
 }
 
 void MainWindow::onTimerTimeout() {
+	// GPU
+	mGpuLoad.update();
+	return;
+
 	// CPU
 	mCpuLoad.update();
 	std::size_t const coreCount = mCpuLoad.getCoreCount();

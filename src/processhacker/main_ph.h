@@ -11,6 +11,8 @@ INT main_ph(
     _In_ HINSTANCE Instance
 );
 
+VOID main_ph_exit();
+
 #ifdef __cplusplus
 }
 #endif
