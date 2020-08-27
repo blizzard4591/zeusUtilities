@@ -9,9 +9,10 @@
 #include <QString>
 #include <QDateTime>
 
-#include "main_ph.h"
+#include "phthread.h"
+
 extern "C" {
-#include "plugin_gpu.h"
+//#include "plugin_gpu.h"
 }
 
 /*
@@ -32,14 +33,24 @@ QDateTime fromFileTime(PFILETIME fileTime) {
 
 GpuLoad::GpuLoad() : mIterationCount(0) {
     //
-    HINSTANCE hInstance = (HINSTANCE)::GetModuleHandle(NULL);
-    main_ph(hInstance);
-    pluginGpuInit(hInstance);
+    //HINSTANCE hInstance = (HINSTANCE)::GetModuleHandle(NULL);
+    //main_ph(hInstance);
+    //pluginGpuInit(hInstance);
+
+    //QObject::connect(&mPhThread, &PhThread::finished, &mPhThread, &QObject::deleteLater);
+    //QObject::connect(&mPhThread, &QThread::finished, worker, &QObject::deleteLater);
+    //QObject::connect(this, &Controller::operate, worker, &Worker::doWork);
+    //QObject::connect(worker, &Worker::resultReady, this, &Controller::handleResults);
+
+    mPhThread.start();
 }
 
 GpuLoad::~GpuLoad() {
     //
-    pluginGpuUnload();
+    //pluginGpuUnload();
+
+    mPhThread.quit();
+    mPhThread.wait();
 }
 
 double GpuLoad::getGpuLoadOfCore(std::size_t core) const {
@@ -51,7 +62,7 @@ std::size_t GpuLoad::getCoreCount() const {
 }
 
 void GpuLoad::update() {
-    updateProcesses();
+    //updateProcesses();
 
     ++mIterationCount;
 }

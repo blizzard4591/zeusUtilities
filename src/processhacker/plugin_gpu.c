@@ -1,4 +1,7 @@
+/*
+
 #include "plugin_gpu.h"
+
 
 #include "exttools.h"
 
@@ -1030,7 +1033,7 @@ VOID pluginGpuInit(HINSTANCE Instance) {
         NULL,
         &PluginUnloadCallbackRegistration
     );
-    /*PhRegisterCallback(
+    PhRegisterCallback(
         PhGetGeneralCallback(GeneralCallbackOptionsWindowInitializing),
         ShowOptionsCallback,
         NULL,
@@ -1041,14 +1044,14 @@ VOID pluginGpuInit(HINSTANCE Instance) {
         MenuItemCallback,
         NULL,
         &PluginMenuItemCallbackRegistration
-    );*/
+    );
     PhRegisterCallback(
         PhGetPluginCallback(PluginInstance, PluginCallbackTreeNewMessage),
         TreeNewMessageCallback,
         NULL,
         &PluginTreeNewMessageCallbackRegistration
     );
-    /*PhRegisterCallback(
+    PhRegisterCallback(
         PhGetPluginCallback(PluginInstance, PluginCallbackPhSvcRequest),
         PhSvcRequestCallback,
         NULL,
@@ -1060,7 +1063,7 @@ VOID pluginGpuInit(HINSTANCE Instance) {
         MainWindowShowingCallback,
         NULL,
         &MainWindowShowingCallbackRegistration
-    );*/
+    );
     PhRegisterCallback(
         PhGetGeneralCallback(GeneralCallbackProcessesUpdated),
         ProcessesUpdatedCallback,
@@ -1080,7 +1083,7 @@ VOID pluginGpuInit(HINSTANCE Instance) {
         NULL,
         &HandlePropertiesInitializingCallbackRegistration
     );
-    /*PhRegisterCallback(
+    PhRegisterCallback(
         PhGetGeneralCallback(GeneralCallbackProcessMenuInitializing),
         ProcessMenuInitializingCallback,
         NULL,
@@ -1097,7 +1100,7 @@ VOID pluginGpuInit(HINSTANCE Instance) {
         ModuleMenuInitializingCallback,
         NULL,
         &ModuleMenuInitializingCallbackRegistration
-    );*/
+    );
     PhRegisterCallback(
         PhGetGeneralCallback(GeneralCallbackProcessTreeNewInitializing),
         ProcessTreeNewInitializingCallback,
@@ -1123,12 +1126,12 @@ VOID pluginGpuInit(HINSTANCE Instance) {
         &MiniInformationInitializingCallbackRegistration
     );
 
-    /*PhRegisterCallback(
+    PhRegisterCallback(
         PhGetGeneralCallback(GeneralCallbackTrayIconsInitializing),
         TrayIconsInitializingCallback,
         NULL,
         &TrayIconsInitializingCallbackRegistration
-    );*/
+    );
 
     PhRegisterCallback(
         PhGetGeneralCallback(GeneralCallbackProcessProviderUpdatedEvent),
@@ -1167,10 +1170,12 @@ VOID pluginGpuInit(HINSTANCE Instance) {
 
     PhAddSettings(settings, RTL_NUMBER_OF(settings));
 
-	EtEtwStatisticsInitialization();
+	//EtEtwStatisticsInitialization();
 	EtGpuMonitorInitialization();
 }
 
 VOID pluginGpuUnload() {
 	EtEtwStatisticsUninitialization();
 }
+
+*/

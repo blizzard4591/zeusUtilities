@@ -25,6 +25,8 @@
 
 #include <shlobj.h>
 
+#include <colorbox.h>
+#include <hexedit.h>
 #include <hndlinfo.h>
 #include <kphuser.h>
 
@@ -95,6 +97,10 @@ static PPH_LIST DialogList = NULL;
 static PPH_LIST FilterList = NULL;
 static PH_AUTO_POOL BaseAutoPool;
 
+NTSTATUS PhMwpLoadStage1Worker(
+    _In_ PVOID Parameter
+);
+
 VOID main_ph_exit() {
     RtlExitUserProcess(0);
 }
@@ -121,23 +127,95 @@ INT main_ph(
     //if (!PhInitializeRestartPolicy())
     //    return 1;
 
+    PhpProcessStartupParameters();
     PhpEnablePrivileges();
 
     if (!SUCCEEDED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
         return 1;
 
+    if (PhStartupParameters.RunAsServiceMode)
+    {
+        RtlExitUserProcess(PhRunAsServiceStart(PhStartupParameters.RunAsServiceMode));
+    }
+
+    if (PhStartupParameters.CommandMode &&
+        PhStartupParameters.CommandType &&
+        PhStartupParameters.CommandAction)
+    {
+        RtlExitUserProcess(PhCommandModeStart());
+    }
 
     PhSettingsInitialization();
     PhpInitializeSettings();
+
+    if (PhGetIntegerSetting(L"AllowOnlyOneInstance") &&
+        !PhStartupParameters.NewInstance &&
+        !PhStartupParameters.ShowOptions &&
+        !PhStartupParameters.CommandMode &&
+        !PhStartupParameters.PhSvc)
+    {
+        PhActivatePreviousInstance();
+    }
+
+    if (PhGetIntegerSetting(L"EnableStartAsAdmin") &&
+        !PhStartupParameters.NewInstance &&
+        !PhStartupParameters.ShowOptions &&
+        !PhStartupParameters.CommandMode &&
+        !PhStartupParameters.PhSvc)
+    {
+        if (!PhGetOwnTokenAttributes().Elevated)
+        {
+            AllowSetForegroundWindow(ASFW_ANY); // TODO: This rarely works. (dmex)
+
+            if (SUCCEEDED(PhRunAsAdminTask(L"ProcessHackerTaskAdmin")))
+            {
+                PhActivatePreviousInstance(); // TODO: This rarely works. (dmex)
+
+                RtlExitUserProcess(STATUS_SUCCESS);
+            }
+        }
+    }
+
+    if (PhGetIntegerSetting(L"EnableKph") &&
+        !PhStartupParameters.NoKph &&
+        !PhStartupParameters.CommandMode &&
+        !PhIsExecutingInWow64()
+        )
+    {
+        PhInitializeKph();
+    }
+
+#ifdef DEBUG
+    dbg.ClientId = NtCurrentTeb()->ClientId;
+    dbg.StartAddress = wWinMain;
+    dbg.Parameter = NULL;
+    InsertTailList(&PhDbgThreadListHead, &dbg.ListEntry);
+    TlsSetValue(PhDbgThreadDbgTlsIndex, &dbg);
+#endif
 
     PhInitializeAutoPool(&BaseAutoPool);
 
     PhInitializeAppSystem();
     PhInitializeCallbacks();
-    
+    PhInitializeCommonControls();
+
     PhEmInitialization();
+    PhGuiSupportInitialization();
     PhTreeNewInitialization();
-    
+    PhGraphControlInitialization();
+    PhHexEditInitialization();
+    PhColorBoxInitialization();
+
+    if (PhStartupParameters.ShowOptions)
+    {
+        PhShowOptionsDialog(PhStartupParameters.WindowHandle);
+        RtlExitUserProcess(STATUS_SUCCESS);
+    }
+
+    if (PhPluginsEnabled && !PhStartupParameters.NoPlugins)
+    {
+        PhLoadPlugins();
+    }
 
 #ifndef DEBUG
     if (WindowsVersion >= WINDOWS_10)
@@ -154,6 +232,16 @@ INT main_ph(
     }
 #endif
 
+    if (PhStartupParameters.PhSvc)
+    {
+        MSG message;
+
+        // Turn the feedback cursor off.
+        PostMessage(NULL, WM_NULL, 0, 0);
+        GetMessage(&message, NULL, 0, 0);
+
+        RtlExitUserProcess(PhSvcMain(NULL, NULL));
+    }
 
 #ifndef DEBUG
     if (PhIsExecutingInWow64())
@@ -181,9 +269,16 @@ INT main_ph(
         PhSetProcessPriority(NtCurrentProcess(), priorityClass);
     }
 
+    if (!PhMainWndInitialization(SW_SHOW)) {
+        PhShowError(NULL, L"Unable to initialize the main window.");
+        return 1;
+    }
+
     PhDrainAutoPool(&BaseAutoPool);
 
-    return 0;
+    result = PhMainMessageLoop();
+    //RtlExitUserProcess(result);
+    return result;
 }
 
 LONG PhMainMessageLoop(
@@ -193,6 +288,63 @@ LONG PhMainMessageLoop(
     BOOL result;
     MSG message;
     HACCEL acceleratorTable;
+
+    acceleratorTable = LoadAccelerators(PhInstanceHandle, MAKEINTRESOURCE(IDR_MAINWND_ACCEL));
+
+    while (result = GetMessage(&message, NULL, 0, 0))
+    {
+        BOOLEAN processed = FALSE;
+        ULONG i;
+
+        if (result == -1)
+            return 1;
+
+        if (FilterList)
+        {
+            for (i = 0; i < FilterList->Count; i++)
+            {
+                PPH_MESSAGE_LOOP_FILTER_ENTRY entry = FilterList->Items[i];
+
+                if (entry->Filter(&message, entry->Context))
+                {
+                    processed = TRUE;
+                    break;
+                }
+            }
+        }
+
+        if (!processed)
+        {
+            if (
+                message.hwnd == PhMainWndHandle ||
+                IsChild(PhMainWndHandle, message.hwnd)
+                )
+            {
+                if (TranslateAccelerator(PhMainWndHandle, acceleratorTable, &message))
+                    processed = TRUE;
+            }
+
+            if (DialogList)
+            {
+                for (i = 0; i < DialogList->Count; i++)
+                {
+                    if (IsDialogMessage((HWND)DialogList->Items[i], &message))
+                    {
+                        processed = TRUE;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!processed)
+        {
+            TranslateMessage(&message);
+            DispatchMessage(&message);
+        }
+
+        PhDrainAutoPool(&BaseAutoPool);
+    }
 
     return (LONG)message.wParam;
 }

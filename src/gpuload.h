@@ -5,6 +5,8 @@
 #include <vector>
 
 #include <QString>
+#include <QThread>
+#include "phthread.h"
 
 class GpuLoad {
 public:
@@ -16,7 +18,7 @@ public:
     std::size_t getCoreCount() const;
 private:
     uint64_t mIterationCount;
-
+    PhThread mPhThread;
     
 };
 

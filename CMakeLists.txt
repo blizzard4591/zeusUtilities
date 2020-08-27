@@ -49,6 +49,7 @@ include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
 include_directories("${PROJECT_SOURCE_DIR}/src/processhacker")
 
+include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/phlib/include")
 include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/sdk/include")
 include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/include")
 include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/plugins/ExtendedTools")
@@ -103,9 +104,9 @@ QT5_WRAP_UI(ZEUSDEBUG_FORMS_HEADERS ${ZEUSDEBUG_FORMS})
 QT5_ADD_RESOURCES(ZEUSDEBUG_RESOURCESOURCES ${ZEUSDEBUG_RESOURCES})
 
 # Add the executables
-add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG_SOURCES_CPP} ${ZEUSDEBUG_RESOURCESOURCES} ${ZEUSDEBUG_FORMS_HEADERS})
+add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG_SOURCES_CPP} ${ZEUSDEBUG_RESOURCESOURCES} ${ZEUSDEBUG_FORMS_HEADERS} "${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.rc" "${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def")
 # "${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def"
-set_property(TARGET zeusDebug PROPERTY ENABLE_EXPORTS 1)
+#set_property(TARGET zeusDebug PROPERTY ENABLE_EXPORTS 1)
 
 
 if (MSVC)

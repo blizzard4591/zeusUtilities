@@ -62,8 +62,10 @@ void MainWindow::onButtonStartStopClick() {
 			pingThread->start();
 		}
 
-		mTimer.setSingleShot(false);
-		mTimer.setInterval(interval);
+		//mTimer.setSingleShot(false);
+		//mTimer.setInterval(interval);
+		mTimer.setSingleShot(true);
+		mTimer.setInterval(50);
 		mTimer.start();
 	}
 	mIsStarted = !mIsStarted;
