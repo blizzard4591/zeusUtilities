@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.12)
+cmake_minimum_required (VERSION 3.13)
 
 set(CMAKE_SYSTEM_VERSION "10.0.19041.0" CACHE STRING INTERNAL FORCE)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -108,6 +108,8 @@ add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG
 # "${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def"
 #set_property(TARGET zeusDebug PROPERTY ENABLE_EXPORTS 1)
 
+#set_target_properties(zeusDebug PROPERTIES LINK_FLAGS "-DEF:${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def")
+target_link_options(zeusDebug PRIVATE "-DEF:${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def")
 
 if (MSVC)
 	set_target_properties(zeusDebug PROPERTIES LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
@@ -133,15 +135,15 @@ endif()
 
 if (WIN32)
 	target_link_libraries(zeusDebug ntdll)
-	target_link_libraries(zeusDebug Comctl32)
-	target_link_libraries(zeusDebug Cfgmgr32)
-	target_link_libraries(zeusDebug Uxtheme)
+	target_link_libraries(zeusDebug comctl32)
+	target_link_libraries(zeusDebug cfgmgr32)
+	target_link_libraries(zeusDebug uxtheme)
 	target_link_libraries(zeusDebug winsta)
-	target_link_libraries(zeusDebug Winhttp)
-	target_link_libraries(zeusDebug Aclui)
-	target_link_libraries(zeusDebug Pdh)
-	target_link_libraries(zeusDebug WbemUuid)
-	target_link_libraries(zeusDebug Shlwapi)
+	target_link_libraries(zeusDebug winhttp)
+	target_link_libraries(zeusDebug aclui)
+	target_link_libraries(zeusDebug pdh)
+	target_link_libraries(zeusDebug wbemUuid)
+	target_link_libraries(zeusDebug shlwapi)
 	target_link_libraries(zeusDebug windowscodecs)
 endif()
 

@@ -9,7 +9,11 @@
 #include <string>
 #include <QString>
 
-CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0) {
+ProcessInfo::ProcessInfo(PFULL_SYSTEM_PROCESS_INFORMATION processInformation) : NumberOfThreads(processInformation->NumberOfThreads), UserTime(processInformation->UserTime), KernelTime(processInformation->KernelTime), ImageName(QString::fromStdWString(std::wstring(processInformation->ImageName.Buffer, processInformation->ImageName.Length / sizeof(WCHAR)))), UniqueProcessId(processInformation->UniqueProcessId), HandleCount(processInformation->HandleCount), SessionId(processInformation->SessionId), PeakVirtualSize(processInformation->PeakVirtualSize), VirtualSize(processInformation->VirtualSize), PeakWorkingSetSize(processInformation->PeakWorkingSetSize), WorkingSetSize(processInformation->WorkingSetSize), PagefileUsage(processInformation->PagefileUsage), PeakPagefileUsage(processInformation->PeakPagefileUsage), PrivatePageCount(processInformation->PrivatePageCount) {
+    //
+}
+
+CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mProcessHistory(), mProcessHistorySize(200), mProcessHistoryHead(0), mProcessHistoryTail(0) {
     SYSTEM_INFO info = { 0 };
     GetSystemInfo(&info);
     mProcessorCount = info.dwNumberOfProcessors;
@@ -23,6 +27,8 @@ CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nu
 
     mProcessInformationSize = 1 * sizeof(SYSTEM_PROCESS_INFORMATION) + 10 * sizeof(SYSTEM_THREAD_INFORMATION);
     mProcessInformation = malloc(mProcessInformationSize);
+
+    mProcessHistory.reserve(mProcessHistorySize);
 }
 
 CpuLoad::~CpuLoad() {
@@ -74,7 +80,13 @@ void CpuLoad::update() {
         result = NtQuerySystemInformation(SystemProcessInformation, mProcessInformation, static_cast<ULONG>(mProcessInformationSize), &requiredSize);
     } while (result == STATUS_INFO_LENGTH_MISMATCH);
     
-    
+    mProcessHistoryHead++;
+    if (mProcessHistoryHead >= mProcessHistorySize) {
+        mProcessHistoryHead = 0;
+    }
+    auto& currentProcessHistory = mProcessHistory[mProcessHistoryHead];
+    currentProcessHistory.clear();
+
     if (result != STATUS_SUCCESS) {
         std::cerr << "Return code was: " << result << " and required size was " << requiredSize << "!" << std::endl;
     } else {
@@ -82,7 +94,12 @@ void CpuLoad::update() {
         uint8_t* basePointer = static_cast<uint8_t*>(mProcessInformation);
 
         while (true) {
-            PSYSTEM_PROCESS_INFORMATION pointer = reinterpret_cast<PSYSTEM_PROCESS_INFORMATION>(basePointer + currentOffset);
+            PFULL_SYSTEM_PROCESS_INFORMATION pointer = reinterpret_cast<PFULL_SYSTEM_PROCESS_INFORMATION>(basePointer + currentOffset);
+            //ProcessInfo* processInfo = new ProcessInfo(pointer);
+            ProcessInfo processInfo(pointer);
+            void* tmp = processInfo.UniqueProcessId;
+            currentProcessHistory.insert(std::make_pair(tmp, processInfo));
+
             std::wstring const wImageName(pointer->ImageName.Buffer, pointer->ImageName.Length / sizeof(WCHAR));
             QString const imageName = QString::fromStdWString(wImageName);
 

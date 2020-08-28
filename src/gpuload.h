@@ -13,6 +13,8 @@ public:
     GpuLoad();
     virtual ~GpuLoad();
 
+    void start();
+
     void update();
     double getGpuLoadOfCore(std::size_t core) const;
     std::size_t getCoreCount() const;

@@ -33,16 +33,6 @@ QDateTime fromFileTime(PFILETIME fileTime) {
 
 GpuLoad::GpuLoad() : mIterationCount(0) {
     //
-    //HINSTANCE hInstance = (HINSTANCE)::GetModuleHandle(NULL);
-    //main_ph(hInstance);
-    //pluginGpuInit(hInstance);
-
-    //QObject::connect(&mPhThread, &PhThread::finished, &mPhThread, &QObject::deleteLater);
-    //QObject::connect(&mPhThread, &QThread::finished, worker, &QObject::deleteLater);
-    //QObject::connect(this, &Controller::operate, worker, &Worker::doWork);
-    //QObject::connect(worker, &Worker::resultReady, this, &Controller::handleResults);
-
-    mPhThread.start();
 }
 
 GpuLoad::~GpuLoad() {
@@ -51,6 +41,10 @@ GpuLoad::~GpuLoad() {
 
     mPhThread.quit();
     mPhThread.wait();
+}
+
+void GpuLoad::start() {
+    mPhThread.start();
 }
 
 double GpuLoad::getGpuLoadOfCore(std::size_t core) const {

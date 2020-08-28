@@ -5,11 +5,15 @@
 
 #include <iostream>
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mPingCounter(0), mCpuLoad() {
+#include "cb_object.h"
+
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mPingCounter(0), mCpuLoad(), mGpuLoad(), mDebugCounter(0) {
     mUi->setupUi(this);
 
 	QObject::connect(mUi->btnStartStop, SIGNAL(clicked()), this, SLOT(onButtonStartStopClick()));
 	QObject::connect(&mTimer, SIGNAL(timeout()), this, SLOT(onTimerTimeout()));
+
+	CbObject::setMainWindow(this, &mCbObject);
 }
 
 MainWindow::~MainWindow() {
@@ -36,10 +40,17 @@ void MainWindow::onButtonStartStopClick() {
 		mPingThreads.clear();
 		mPings.clear();
 
+		quint64 const missedFrameCountAtEnd = mCbObject.getCurrentMissedFrameCount();
+		if (mMissedFrameCountAtStart < missedFrameCountAtEnd) {
+			// Meh, we lost information :(
+		}
+
 		mUi->btnStartStop->setText("Start Measurement");
 	} else {
 		mUi->logWidget->clear();
 		mUi->btnStartStop->setText("Stop Measurement");
+
+		mMissedFrameCountAtStart = mCbObject.getCurrentMissedFrameCount();
 
 		QStringList const targets = mUi->edtTargets->text().split(QChar(','), Qt::SkipEmptyParts);
 		uint32_t const interval = static_cast<uint32_t>(mUi->spinInterval->value());
@@ -69,6 +80,29 @@ void MainWindow::onButtonStartStopClick() {
 		mTimer.start();
 	}
 	mIsStarted = !mIsStarted;
+}
+
+void MainWindow::incrementCounter() {
+	++mDebugCounter;
+	if (mDebugCounter > 2147483647uLL) {
+		mDebugCounter = 0;
+	}
+
+	mUi->spinDebug->setValue(mDebugCounter);
+}
+
+void MainWindow::setProcessUpdatesState(bool isCurrentlyOkay, quint64 errorCount) {
+	QString text = "";
+	if (isCurrentlyOkay) {
+		text += "currently OKAY, ";
+	} else {
+		text += "currently NOT OKAY, ";
+	}
+
+	text += "missed frame count: ";
+	text += errorCount;
+
+	mUi->lblProcessUpdates->setText(QString("currently %1, missed frame count: %2").arg(isCurrentlyOkay ? "OKAY" : "BAD").arg(errorCount));
 }
 
 void MainWindow::onTimerTimeout() {

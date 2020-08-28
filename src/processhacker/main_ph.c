@@ -269,7 +269,9 @@ INT main_ph(
         PhSetProcessPriority(NtCurrentProcess(), priorityClass);
     }
 
-    if (!PhMainWndInitialization(SW_SHOW)) {
+    //INT windowCmd = SW_HIDE;
+    INT windowCmd = SW_SHOW;
+    if (!PhMainWndInitialization(windowCmd)) {
         PhShowError(NULL, L"Unable to initialize the main window.");
         return 1;
     }

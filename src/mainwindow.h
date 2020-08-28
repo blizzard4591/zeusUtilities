@@ -10,6 +10,7 @@
 #include "ping.h"
 #include "cpuload.h"
 #include "gpuload.h"
+#include "cb_object.h"
 
 namespace Ui {
     class MainWindow;
@@ -26,11 +27,15 @@ public slots:
     void onTimerTimeout();
 
     void onPingDone(quint64 pingId, Ping::PingResponse pingResponse);
+
+    void incrementCounter();
+    void setProcessUpdatesState(bool isCurrentlyOkay, quint64 errorCount);
 private:
     Ui::MainWindow* mUi;
 
     bool mIsStarted;
     quint64 mPingCounter;
+    quint64 mMissedFrameCountAtStart;
 
     QVector<QThread*> mPingThreads;
     QVector<Ping*> mPings;
@@ -38,6 +43,9 @@ private:
     CpuLoad mCpuLoad;
 
     GpuLoad mGpuLoad;
+    CbObject mCbObject;
+
+    quint64 mDebugCounter;
 
     void addLogItem(QString const& text);
 };
