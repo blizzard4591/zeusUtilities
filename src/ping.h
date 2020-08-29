@@ -18,15 +18,16 @@ public:
         bool hasError;
         uint32_t errorCode;
         uint32_t roundTripTime;
+        uint8_t ttl;
         QString target;
     };
 
     bool ping(PingResponse& pingResponse);
 signals:
-    void pingDone(quint64 pingId, Ping::PingResponse pingResponse);
+    void pingDone(quint64 roundId, quint64 pingId, Ping::PingResponse pingResponse);
 
 public slots:
-    void doPing(quint64 pingId);
+    void doPing(quint64 roundId, quint64 pingId);
 
 private:
     QString const mTarget;

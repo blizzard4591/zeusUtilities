@@ -5,15 +5,29 @@
 
 #include <algorithm>
 #include <iostream>
+#include <unordered_set>
 
 #include <string>
 #include <QString>
 
-ProcessInfo::ProcessInfo(PFULL_SYSTEM_PROCESS_INFORMATION processInformation) : NumberOfThreads(processInformation->NumberOfThreads), UserTime(processInformation->UserTime), KernelTime(processInformation->KernelTime), ImageName(QString::fromStdWString(std::wstring(processInformation->ImageName.Buffer, processInformation->ImageName.Length / sizeof(WCHAR)))), UniqueProcessId(processInformation->UniqueProcessId), HandleCount(processInformation->HandleCount), SessionId(processInformation->SessionId), PeakVirtualSize(processInformation->PeakVirtualSize), VirtualSize(processInformation->VirtualSize), PeakWorkingSetSize(processInformation->PeakWorkingSetSize), WorkingSetSize(processInformation->WorkingSetSize), PagefileUsage(processInformation->PagefileUsage), PeakPagefileUsage(processInformation->PeakPagefileUsage), PrivatePageCount(processInformation->PrivatePageCount) {
+ProcessInfo::ProcessInfo(PFULL_SYSTEM_PROCESS_INFORMATION processInformation) : ImageName(QString::fromStdWString(std::wstring(processInformation->ImageName.Buffer, processInformation->ImageName.Length / sizeof(WCHAR)))), UniqueProcessId(processInformation->UniqueProcessId), UserTime(processInformation->UserTime), KernelTime(processInformation->KernelTime), PeakVirtualSize(processInformation->PeakVirtualSize), VirtualSize(processInformation->VirtualSize), PeakWorkingSetSize(processInformation->PeakWorkingSetSize), WorkingSetSize(processInformation->WorkingSetSize), PagefileUsage(processInformation->PagefileUsage), PeakPagefileUsage(processInformation->PeakPagefileUsage), PrivatePageCount(processInformation->PrivatePageCount) {
     //
 }
 
-CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mProcessHistory(), mProcessHistorySize(200), mProcessHistoryHead(0), mProcessHistoryTail(0) {
+void ProcessInfo::update(PFULL_SYSTEM_PROCESS_INFORMATION processInformation) {
+    UserTime = processInformation->UserTime;
+    KernelTime = processInformation->KernelTime;
+
+    PeakVirtualSize = processInformation->PeakVirtualSize;
+    VirtualSize = processInformation->VirtualSize;
+    PeakWorkingSetSize = processInformation->PeakWorkingSetSize;
+    WorkingSetSize = processInformation->WorkingSetSize;
+    PagefileUsage = processInformation->PagefileUsage;
+    PeakPagefileUsage = processInformation->PeakPagefileUsage;
+    PrivatePageCount = processInformation->PrivatePageCount;
+}
+
+CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mProcessHistory(), mStateString(), mProcessesStrings(), mIsArmaRunning(false) {
     SYSTEM_INFO info = { 0 };
     GetSystemInfo(&info);
     mProcessorCount = info.dwNumberOfProcessors;
@@ -28,7 +42,9 @@ CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nu
     mProcessInformationSize = 1 * sizeof(SYSTEM_PROCESS_INFORMATION) + 10 * sizeof(SYSTEM_THREAD_INFORMATION);
     mProcessInformation = malloc(mProcessInformationSize);
 
-    mProcessHistory.reserve(mProcessHistorySize);
+    mUserTimeDelta = 0;
+    mLastKernelTime = 0;
+    mLastIdleTime = 0;
 }
 
 CpuLoad::~CpuLoad() {
@@ -43,6 +59,27 @@ CpuLoad::~CpuLoad() {
     }
 }
 
+void CpuLoad::reset() {
+    if (mLastValues != nullptr) {
+        delete[] mLastValues;
+    }
+    if (mCurrentValues != nullptr) {
+        delete[] mCurrentValues;
+    }
+
+    mLastValues = new SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION[mProcessorCount];
+    mCurrentValues = new SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION[mProcessorCount];
+
+    mCpuLoadPerCore.clear();
+    for (DWORD i = 0; i < mProcessorCount; ++i) {
+        mCpuLoadPerCore.push_back(0.0);
+    }
+
+    mUserTimeDelta = 0;
+    mLastKernelTime = 0;
+    mLastIdleTime = 0;
+}
+
 double CpuLoad::getCpuLoadOfCore(std::size_t core) const {
     return mCpuLoadPerCore.at(core);
 }
@@ -51,20 +88,57 @@ std::size_t CpuLoad::getCoreCount() const {
     return mProcessorCount;
 }
 
-void CpuLoad::update() {
+void CpuLoad::update(uint64_t roundId) {
+    mStateString = "";
+    mProcessesStrings.clear();
+    mIsArmaRunning = false;
+
     // Make room for new data, swapping the current to last
     std::swap(mCurrentValues, mLastValues);
 
+    uint64_t userTime = 0;
+    uint64_t kernelTime = 0;
+    uint64_t idleTime = 0;
+
     ULONG size;
     NtQuerySystemInformation(SystemProcessorPerformanceInformation, mCurrentValues, sizeof(mCurrentValues[0]) * mProcessorCount, &size);
-    if (mIterationCount > 0) {
-        for (DWORD i = 0; i < mProcessorCount; ++i) {
+    for (DWORD i = 0; i < mProcessorCount; ++i) {
+        userTime += mCurrentValues[i].UserTime.QuadPart;
+        kernelTime += mCurrentValues[i].KernelTime.QuadPart;
+        idleTime += mCurrentValues[i].IdleTime.QuadPart;
+        if (mIterationCount > 0) {
             double current_percent = (mCurrentValues[i].IdleTime.QuadPart - mLastValues[i].IdleTime.QuadPart) * 100.0;
             current_percent /= ((mCurrentValues[i].KernelTime.QuadPart + mCurrentValues[i].UserTime.QuadPart) - (mLastValues[i].KernelTime.QuadPart + mLastValues[i].UserTime.QuadPart));
             current_percent = 100.0 - current_percent;
             mCpuLoadPerCore.at(i) = current_percent;
         }
+        mUserTimeDelta = userTime - mLastUserTime;
+        mKernelTimeDelta = kernelTime - mLastKernelTime;
+        mIdleTimeDelta = idleTime - mLastIdleTime;
     }
+
+    mLastUserTime = userTime;
+    mLastKernelTime = kernelTime;
+    mLastIdleTime = idleTime;
+
+    double overallTimeDelta = (mUserTimeDelta + mKernelTimeDelta);
+    if (overallTimeDelta == 0.0) {
+        overallTimeDelta = 1.0;
+    }
+
+    // userDelta, kernelDelta, idleDelta
+    mStateString += QStringLiteral("%1;%2;%3").arg(mUserTimeDelta).arg(mKernelTimeDelta).arg(mIdleTimeDelta);
+
+    // Memory information
+    MEMORYSTATUSEX statex;
+    statex.dwLength = sizeof(statex);
+    if (GlobalMemoryStatusEx(&statex) == 0) {
+        std::cerr << "Failed to fetch memory information: " << GetLastError() << std::endl;
+    }
+    uint64_t const totalPhysicalMemory = statex.ullTotalPhys;
+
+    // memory load, total mem, free mem, total page, free page, total virt, free virt
+    mStateString += QStringLiteral(";%1;%2;%3;%4;%5;%6;%7").arg(statex.dwMemoryLoad).arg(statex.ullTotalPhys).arg(statex.ullAvailPhys).arg(statex.ullTotalPageFile).arg(statex.ullAvailPageFile).arg(statex.ullTotalVirtual).arg(statex.ullAvailVirtual);
 
     // Per-process information
     ULONG requiredSize = 0;
@@ -80,38 +154,104 @@ void CpuLoad::update() {
         result = NtQuerySystemInformation(SystemProcessInformation, mProcessInformation, static_cast<ULONG>(mProcessInformationSize), &requiredSize);
     } while (result == STATUS_INFO_LENGTH_MISMATCH);
     
-    mProcessHistoryHead++;
-    if (mProcessHistoryHead >= mProcessHistorySize) {
-        mProcessHistoryHead = 0;
-    }
-    auto& currentProcessHistory = mProcessHistory[mProcessHistoryHead];
-    currentProcessHistory.clear();
-
     if (result != STATUS_SUCCESS) {
         std::cerr << "Return code was: " << result << " and required size was " << requiredSize << "!" << std::endl;
     } else {
         ULONG currentOffset = 0;
         uint8_t* basePointer = static_cast<uint8_t*>(mProcessInformation);
 
+        std::unordered_set<void*> processesNotSeen;
+        for (auto it = mProcessHistory.cbegin(); it != mProcessHistory.cend(); ++it) {
+            processesNotSeen.insert(it->second.UniqueProcessId);
+        }
+
         while (true) {
             PFULL_SYSTEM_PROCESS_INFORMATION pointer = reinterpret_cast<PFULL_SYSTEM_PROCESS_INFORMATION>(basePointer + currentOffset);
-            //ProcessInfo* processInfo = new ProcessInfo(pointer);
-            ProcessInfo processInfo(pointer);
-            void* tmp = processInfo.UniqueProcessId;
-            currentProcessHistory.insert(std::make_pair(tmp, processInfo));
+            void* handle = pointer->UniqueProcessId;
+            processesNotSeen.erase(handle);
 
-            std::wstring const wImageName(pointer->ImageName.Buffer, pointer->ImageName.Length / sizeof(WCHAR));
-            QString const imageName = QString::fromStdWString(wImageName);
+            if (!mProcessHistory.contains(handle)) {
+                mProcessHistory.insert(std::make_pair(handle, ProcessInfo(pointer)));
+            } else {
+                mProcessHistory.at(handle).update(pointer);
+            }
+
+            double const percentLoad = 100.0 * (mProcessHistory.at(handle).KernelTime.delta + mProcessHistory.at(handle).UserTime.delta) / overallTimeDelta;
+            double const percentMemory = 100.0 * mProcessHistory.at(handle).WorkingSetSize.value / totalPhysicalMemory;
+
+            // For debugging
+            /*
+            uint64_t intProcessHandle = (uint64_t)handle;
+            if (intProcessHandle == 16780 || intProcessHandle == 31056) {
+                std::cout << mProcessHistory.at(handle) << " (" << percentLoad << "%)" << std::endl;
+            }
+            */
+
+            bool const isArma32Bit = mProcessHistory.at(handle).ImageName.compare(QStringLiteral("arma3.exe"), Qt::CaseInsensitive) == 0;
+            bool const isArma64Bit = mProcessHistory.at(handle).ImageName.compare(QStringLiteral("arma3_x64.exe"), Qt::CaseInsensitive) == 0;
+
+            if (mProcessHistory.at(handle).ImageName.contains(QStringLiteral("arma3")) || (percentLoad >= 10.0) || (percentMemory >= 10.0)) {
+                if (mProcessHistory.at(handle).ImageName.compare(QStringLiteral("Memory Compression")) != 0) {
+                    mProcessesStrings.append(mProcessHistory.at(handle).toQString());
+                }
+            }
+
+            if (isArma32Bit || isArma64Bit) {
+                mIsArmaRunning = true;
+                mArmaImageName = mProcessHistory.at(handle).ImageName;
+                mArmaPid = (uint64_t)handle;
+            }
 
             //std::string imageName = ws2s(wImageName);
-            std::cout << "#Threads: " << pointer->NumberOfThreads << ",Image:" << imageName.toStdString() << ",VirtSize:" << pointer->VirtualSize << std::endl;
+            //std::cout << "#Threads: " << pointer->NumberOfThreads << ",Image:" << imageName.toStdString() << ",VirtSize:" << pointer->VirtualSize << std::endl;
 
             currentOffset += pointer->NextEntryOffset;
             if (pointer->NextEntryOffset == 0) {
                 break;
             }
         }
+
+        for (auto it = processesNotSeen.cbegin(); it != processesNotSeen.cend(); ++it) {
+            mProcessHistory.erase(*it);
+        }
     }
 
     ++mIterationCount;
+}
+
+QString DeltaValueLI::toQString() {
+    return QStringLiteral("%1;%2").arg(value.QuadPart).arg(delta);
+}
+
+QString DeltaValueST::toQString() {
+    return QStringLiteral("%1;%2").arg(value).arg(delta);
+}
+
+QString ProcessInfo::toQString() {
+    return QStringLiteral("%1;%2;%3;%4;%5;%6").arg((uint64_t)UniqueProcessId).arg(ImageName).arg(UserTime.toQString()).arg(KernelTime.toQString()).arg(WorkingSetSize.toQString()).arg(PeakWorkingSetSize.toQString());
+}
+
+std::ostream& operator<<(std::ostream& os, const DeltaValueLI& d) {
+    os << d.value.QuadPart << "(d = " << d.delta << ")";
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const DeltaValueST& d) {
+    os << d.value << "(d = " << d.delta << ")";
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const ProcessInfo& pi) {
+    os << pi.ImageName.toStdString() << "(PID = " << (uint64_t)pi.UniqueProcessId;
+    os << ", UserTime = " << pi.UserTime;
+    os << ", KernelTime = " << pi.KernelTime;
+    //os << ", PeakVirtualSize = " << pi.PeakVirtualSize;
+    //os << ", VirtualSize = " << pi.VirtualSize;
+    os << ", PeakWorkingSetSize = " << pi.PeakWorkingSetSize;
+    os << ", WorkingSetSize = " << pi.WorkingSetSize;
+    //os << ", PagefileUsage = " << pi.PagefileUsage;
+    //os << ", PeakPagefileUsage = " << pi.PeakPagefileUsage;
+    //os << ", PrivatePageCount = " << pi.PrivatePageCount;
+    os << ")";
+    return os;
 }

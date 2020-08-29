@@ -49,27 +49,68 @@ typedef struct _FULL_SYSTEM_PROCESS_INFORMATION {
 } FULL_SYSTEM_PROCESS_INFORMATION, * PFULL_SYSTEM_PROCESS_INFORMATION;
 
 #include <QString>
+#include <QStringList>
+
+class DeltaValueLI {
+public:
+    DeltaValueLI(LARGE_INTEGER v) {
+        value = v;
+        delta = 0;
+    }
+
+    void operator =(LARGE_INTEGER const& b) {
+        delta = static_cast<int64_t>(b.QuadPart) - static_cast<int64_t>(value.QuadPart);
+        value.QuadPart = b.QuadPart;
+    }
+
+    LARGE_INTEGER value;
+    int64_t delta;
+
+    QString toQString();
+    friend std::ostream& operator<<(std::ostream& os, const DeltaValueLI& d);
+};
+
+class DeltaValueST {
+public:
+    DeltaValueST(std::size_t v) {
+        value = v;
+        delta = 0;
+    }
+
+    void operator =(std::size_t const& b) {
+        delta = static_cast<int64_t>(b) - static_cast<int64_t>(value);
+        value = b;
+    }
+
+    std::size_t value;
+    int64_t delta;
+
+    QString toQString();
+    friend std::ostream& operator<<(std::ostream& os, const DeltaValueST& d);
+};
 
 class ProcessInfo {
 public:
-    ProcessInfo(HANDLE UniqueProcessId, QString const& ImageName)
-
     ProcessInfo(PFULL_SYSTEM_PROCESS_INFORMATION processInformation);
 
-    ULONG const NumberOfThreads;
-    LARGE_INTEGER const UserTime;
-    LARGE_INTEGER const KernelTime;
+    void update(PFULL_SYSTEM_PROCESS_INFORMATION processInformation);
+
     QString const ImageName;
     HANDLE const UniqueProcessId;
-    ULONG const HandleCount;
-    ULONG const SessionId;
-    SIZE_T const PeakVirtualSize;
-    SIZE_T const VirtualSize;
-    SIZE_T const PeakWorkingSetSize;
-    SIZE_T const WorkingSetSize;
-    SIZE_T const PagefileUsage;
-    SIZE_T const PeakPagefileUsage;
-    SIZE_T const PrivatePageCount;
+
+    DeltaValueLI UserTime;
+    DeltaValueLI KernelTime;
+    
+    DeltaValueST PeakVirtualSize;
+    DeltaValueST VirtualSize;
+    DeltaValueST PeakWorkingSetSize;
+    DeltaValueST WorkingSetSize;
+    DeltaValueST PagefileUsage;
+    DeltaValueST PeakPagefileUsage;
+    DeltaValueST PrivatePageCount;
+    
+    QString toQString();
+    friend std::ostream& operator<<(std::ostream& os, const ProcessInfo& pi);
 };
 
 class CpuLoad {
@@ -77,24 +118,44 @@ public:
     CpuLoad();
     virtual ~CpuLoad();
 
-    void update();
+    void update(uint64_t roundId);
+    void reset();
+
     double getCpuLoadOfCore(std::size_t core) const;
     std::size_t getCoreCount() const;
+
+    QString const& getStateString() const { return mStateString; }
+    QStringList const& getProcessesStrings() const { return mProcessesStrings; }
+
+    bool isArmaRunning() const { return mIsArmaRunning; }
+    QString const& getArmaImageName() const { return mArmaImageName; }
+    uint64_t getArmaPid() const { return mArmaPid; }
 private:
     uint64_t mIterationCount;
     PSYSTEM_PROCESSOR_PERFORMANCE_INFORMATION mLastValues;
     PSYSTEM_PROCESSOR_PERFORMANCE_INFORMATION mCurrentValues;
 
     DWORD mProcessorCount;
+    uint64_t mLastUserTime;
+    uint64_t mLastKernelTime;
+    uint64_t mLastIdleTime;
+
+    uint64_t mUserTimeDelta;
+    uint64_t mKernelTimeDelta;
+    uint64_t mIdleTimeDelta;
 
     std::vector<double> mCpuLoadPerCore;
-    std::vector<std::unordered_map<void*, ProcessInfo>> mProcessHistory;
-    std::size_t mProcessHistorySize;
-    std::size_t mProcessHistoryHead;
-    std::size_t mProcessHistoryTail;
+    std::unordered_map<void*, ProcessInfo> mProcessHistory;
 
     void* mProcessInformation;
     std::size_t mProcessInformationSize;
+
+    QString mStateString;
+    QStringList mProcessesStrings;
+    
+    bool mIsArmaRunning;
+    QString mArmaImageName;
+    uint64_t mArmaPid;
 };
 
 #endif

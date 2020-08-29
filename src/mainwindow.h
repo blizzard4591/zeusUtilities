@@ -2,6 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QByteArray>
+#include <QDateTime>
+#include <QFile>
 #include <QMainWindow>
 #include <QThread>
 #include <QTimer>
@@ -26,10 +28,9 @@ public slots:
 	void onButtonStartStopClick();
     void onTimerTimeout();
 
-    void onPingDone(quint64 pingId, Ping::PingResponse pingResponse);
+    void onPingDone(quint64 roundId, quint64 pingId, Ping::PingResponse pingResponse);
 
     void incrementCounter();
-    void setProcessUpdatesState(bool isCurrentlyOkay, quint64 errorCount);
 private:
     Ui::MainWindow* mUi;
 
@@ -39,6 +40,15 @@ private:
 
     QVector<QThread*> mPingThreads;
     QVector<Ping*> mPings;
+
+    struct RoundInfo {
+        quint64 remainingPings;
+        QString stateData;
+        QString startTime;
+        QVector<QString> pingResponses;
+    };
+
+    QHash<quint64, RoundInfo> mRemainingPings;
     QTimer mTimer;
     CpuLoad mCpuLoad;
 
@@ -46,6 +56,10 @@ private:
     CbObject mCbObject;
 
     quint64 mDebugCounter;
+
+    QFile mOutputFile;
+    QDateTime mTimeStartRecord;
+    quint64 mBytesWritten;
 
     void addLogItem(QString const& text);
 };

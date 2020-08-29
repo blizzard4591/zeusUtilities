@@ -29,6 +29,7 @@ public:
 	static void setMainWindow(MainWindow* mainWindow, CbObject* selfReference) {
 		mMainWindow = mainWindow;
 		mSelfReference = selfReference;
+		selfReference->mTimer.start();
 	}
 
 	void callbackTest(int id);

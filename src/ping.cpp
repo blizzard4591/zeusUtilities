@@ -52,46 +52,59 @@ bool Ping::ping(PingResponse& pingResponse) {
     // We create a row in which we write the response message
     QString strMessage = "";
 
+    bool const debug = false;
+
     pingResponse.target = mTarget;
-    if (dwRetVal != 0) {
-        pingResponse.hasError = false;
-        pingResponse.errorCode = 0;
+    if (dwRetVal > 0) {
         // The structure of the echo response
         PICMP_ECHO_REPLY pEchoReply = (PICMP_ECHO_REPLY)mReplyBuffer.data();
-        struct in_addr ReplyAddr;
-        ReplyAddr.S_un.S_addr = pEchoReply->Address;
+        if (pEchoReply->Status == IP_SUCCESS) {
+            pingResponse.hasError = false;
+            pingResponse.errorCode = 0;
+            pingResponse.ttl = pEchoReply->Options.Ttl;
 
-        strMessage += "Sent icmp message to " + mTargetIp + "\n";
-        if (dwRetVal > 1) {
-            strMessage += "Received " + QString::number(dwRetVal) + " icmp message responses \n";
-            strMessage += "Information from the first response: ";
-        } else {
-            strMessage += "Received " + QString::number(dwRetVal) + " icmp message response \n";
-            strMessage += "Information from the first response: ";
+            if (debug) {
+                struct in_addr ReplyAddr;
+                ReplyAddr.S_un.S_addr = pEchoReply->Address;
+
+                strMessage += "Sent icmp message to " + mTargetIp + "\n";
+                if (dwRetVal > 1) {
+                    strMessage += "Received " + QString::number(dwRetVal) + " icmp message responses \n";
+                    strMessage += "Information from the first response: ";
+                } else {
+                    strMessage += "Received " + QString::number(dwRetVal) + " icmp message response \n";
+                    strMessage += "Information from the first response: ";
+                }
+                strMessage += "Received from ";
+                strMessage += inet_ntoa(ReplyAddr);
+                strMessage += "\n";
+                strMessage += "Status = " + QString::number(((int)pEchoReply->Status)) + "\n";
+                strMessage += "Roundtrip time = " + QString::number(pEchoReply->RoundTripTime) + " milliseconds \n";
+                strMessage += "TTL = " + QString::number(pEchoReply->Options.Ttl) + "\n";
+            }
+            pingResponse.roundTripTime = pEchoReply->RoundTripTime;
         }
-        strMessage += "Received from ";
-        strMessage += inet_ntoa(ReplyAddr);
-        strMessage += "\n";
-        strMessage += "Status = " + pEchoReply->Status;
-        strMessage += "Roundtrip time = " + QString::number(pEchoReply->RoundTripTime) + " milliseconds \n";
-        pingResponse.roundTripTime = pEchoReply->RoundTripTime;
     } else {
         pingResponse.hasError = true;
         pingResponse.errorCode = GetLastError();
-        strMessage += "Call to IcmpSendEcho failed.\n";
-        strMessage += "IcmpSendEcho returned error: ";
-        strMessage += QString::number(GetLastError());
+        if (debug) {
+            strMessage += "Call to IcmpSendEcho failed.\n";
+            strMessage += "IcmpSendEcho returned error: ";
+            strMessage += QString::number(GetLastError());
+        }
     }
 
     // Display information about the received data
-    //std::cout << strMessage.toStdString() << std::endl;
+    if (debug) {
+        std::cout << strMessage.toStdString() << std::endl;
+    }
 
     return true;
 }
 
-void Ping::doPing(quint64 pingId) {
+void Ping::doPing(quint64 roundId, quint64 pingId) {
     Ping::PingResponse result;
     ping(result);
 
-    emit pingDone(pingId, result);
+    emit pingDone(roundId, pingId, result);
 }

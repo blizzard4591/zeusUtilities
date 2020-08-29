@@ -22,7 +22,7 @@ CbObject::CbObject() : QObject(), mTimer(), mCbCallCount(0), mCbCallCountLast(0)
 	QObject::connect(&mTimer, SIGNAL(timeout()), this, SLOT(onTimerTimeout()));
 	mTimer.setSingleShot(false);
 	mTimer.setInterval(1000);
-	mTimer.start();
+	//mTimer.start();
 }
 
 CbObject::~CbObject() {
