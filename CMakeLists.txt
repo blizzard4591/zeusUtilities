@@ -36,23 +36,10 @@ find_package(Qt5Widgets REQUIRED)
 find_package(Qt5Network REQUIRED)
 find_package(Qt5PrintSupport REQUIRED)
 
-include(ExternalProject)
-ExternalProject_Add(processHackerProject 
-	SOURCE_DIR "${PROJECT_SOURCE_DIR}/thirdParty/processhacker" 
-	INSTALL_DIR "${PROJECT_BINARY_DIR}/installProcessHacker"
-	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-)
-link_directories("${PROJECT_BINARY_DIR}/installProcessHacker/lib")
-
 # Add base folder for better inclusion paths
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
 include_directories("${PROJECT_SOURCE_DIR}/src/processhacker")
-
-include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/phlib/include")
-include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/sdk/include")
-include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/include")
-include_directories("${PROJECT_SOURCE_DIR}/thirdParty/processhacker/plugins/ExtendedTools")
 
 if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest /MP /Gz")
@@ -60,14 +47,9 @@ if(MSVC)
 	add_definitions(/DNOMINMAX)
 	add_definitions(/MP)
 	add_definitions(/std:c++latest)
-	add_definitions(/Gz)
 	
 	add_definitions(-DUNICODE)
 	add_definitions(-D_UNICODE)
-	
-	add_definitions(/D_PHLIB_)
-	add_definitions(/D_PHAPP_)
-	add_definitions(/DPHLIB_NO_DEFAULT_LIB)
 endif()
 
 if (WIN32)
@@ -104,12 +86,7 @@ QT5_WRAP_UI(ZEUSDEBUG_FORMS_HEADERS ${ZEUSDEBUG_FORMS})
 QT5_ADD_RESOURCES(ZEUSDEBUG_RESOURCESOURCES ${ZEUSDEBUG_RESOURCES})
 
 # Add the executables
-add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG_SOURCES_CPP} ${ZEUSDEBUG_RESOURCESOURCES} ${ZEUSDEBUG_FORMS_HEADERS} "${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.rc" "${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def")
-# "${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def"
-#set_property(TARGET zeusDebug PROPERTY ENABLE_EXPORTS 1)
-
-#set_target_properties(zeusDebug PROPERTIES LINK_FLAGS "-DEF:${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def")
-target_link_options(zeusDebug PRIVATE "-DEF:${PROJECT_SOURCE_DIR}/thirdParty/processhacker/ProcessHacker/ProcessHacker.def")
+add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG_SOURCES_CPP} ${ZEUSDEBUG_RESOURCESOURCES} ${ZEUSDEBUG_FORMS_HEADERS})
 
 if (MSVC)
 	set_target_properties(zeusDebug PROPERTIES LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
@@ -147,6 +124,3 @@ if (WIN32)
 	target_link_libraries(zeusDebug windowscodecs)
 endif()
 
-target_link_libraries(zeusDebug phlib)
-target_link_libraries(zeusDebug processHacker)
-target_link_libraries(zeusDebug extendedTools)

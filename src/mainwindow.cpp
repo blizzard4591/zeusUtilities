@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-#include "cb_object.h"
+#include "gpu_query.h"
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mPingCounter(0), mCpuLoad(), mGpuLoad(), mDebugCounter(0) {
     mUi->setupUi(this);
@@ -150,11 +150,15 @@ void MainWindow::onTimerTimeout() {
 	QDateTime const now = QDateTime::currentDateTimeUtc();
 
 	// GPU
-	//mGpuLoad.update();
+	QDateTime before = QDateTime::currentDateTime();
+	mGpuLoad.update();
+	QDateTime after = QDateTime::currentDateTime();
+	std::cout << "Took " << before.msecsTo(after) << "ms." << std::endl;
+
 	//return;
 
 	// CPU
-	mCpuLoad.update(mPingCounter);
+	mCpuLoad.update(mGpuLoad.getCurrentGpuLoad());
 
 	if (mCpuLoad.isArmaRunning()) {
 		mUi->lblArmaState->setText(QStringLiteral("yes (PID = %1, %2)").arg(mCpuLoad.getArmaPid()).arg(mCpuLoad.getArmaImageName()));

@@ -88,7 +88,7 @@ std::size_t CpuLoad::getCoreCount() const {
     return mProcessorCount;
 }
 
-void CpuLoad::update(uint64_t roundId) {
+void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
     mStateString = "";
     mProcessesStrings.clear();
     mIsArmaRunning = false;

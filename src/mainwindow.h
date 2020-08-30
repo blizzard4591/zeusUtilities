@@ -12,7 +12,6 @@
 #include "ping.h"
 #include "cpuload.h"
 #include "gpuload.h"
-#include "cb_object.h"
 
 namespace Ui {
     class MainWindow;
@@ -53,7 +52,6 @@ private:
     CpuLoad mCpuLoad;
 
     GpuLoad mGpuLoad;
-    CbObject mCbObject;
 
     quint64 mDebugCounter;
 

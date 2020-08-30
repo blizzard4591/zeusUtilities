@@ -51,6 +51,8 @@ typedef struct _FULL_SYSTEM_PROCESS_INFORMATION {
 #include <QString>
 #include <QStringList>
 
+#include "gpuload.h"
+
 class DeltaValueLI {
 public:
     DeltaValueLI(LARGE_INTEGER v) {
@@ -118,7 +120,7 @@ public:
     CpuLoad();
     virtual ~CpuLoad();
 
-    void update(uint64_t roundId);
+    void update(std::unordered_map<void*, GpuInfo> const& gpuLoad);
     void reset();
 
     double getCpuLoadOfCore(std::size_t core) const;
