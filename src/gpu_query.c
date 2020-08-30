@@ -42,10 +42,7 @@ extern VOID ParseGpuProcessMemoryCommitUsageCounter(
 
 extern VOID AquireGpuLock();
 extern VOID ReleaseGpuLock();
-
-extern VOID MeasureBefore();
-extern VOID MeasureAfter(int id);
-extern VOID MeasureShowTime(int id);
+extern VOID GpuUpdateRoundComplete();
 
 typedef struct _UNICODE_STRING {
     USHORT Length;
@@ -147,60 +144,21 @@ BOOLEAN GetCounterArrayBuffer(
     return FALSE;
 }
 
-HANDLE gpuCounterQueryEvent = NULL;
-PDH_HQUERY gpuPerfCounterQueryHandle = NULL;
-PDH_HCOUNTER gpuPerfCounterRunningTimeHandle = NULL;
-PDH_HCOUNTER gpuPerfCounterDedicatedUsageHandle = NULL;
-PDH_HCOUNTER gpuPerfCounterSharedUsageHandle = NULL;
-PDH_HCOUNTER gpuPerfCounterCommittedUsageHandle = NULL;
-PPDH_FMT_COUNTERVALUE_ITEM buffer;
-ULONG bufferCount;
+VOID runGpuQueries() {
+    HANDLE gpuCounterQueryEvent = NULL;
+    PDH_HQUERY gpuPerfCounterQueryHandle = NULL;
+    PDH_HCOUNTER gpuPerfCounterRunningTimeHandle = NULL;
+    PDH_HCOUNTER gpuPerfCounterDedicatedUsageHandle = NULL;
+    PDH_HCOUNTER gpuPerfCounterSharedUsageHandle = NULL;
+    PDH_HCOUNTER gpuPerfCounterCommittedUsageHandle = NULL;
+    PPDH_FMT_COUNTERVALUE_ITEM buffer;
+    ULONG bufferCount;
 
-BOOL gpuCountersInit() {
-    if (!NT_SUCCESS(NtCreateEvent(&gpuCounterQueryEvent, EVENT_ALL_ACCESS, NULL, SynchronizationEvent, FALSE))) {
-        return 1;
-    }
-
-    if (PdhOpenQuery(NULL, 0, &gpuPerfCounterQueryHandle) != ERROR_SUCCESS) {
-        return 2;
-    }
-
-    if (PdhAddCounter(gpuPerfCounterQueryHandle, L"\\GPU Engine(*)\\Utilization Percentage", 0, &gpuPerfCounterRunningTimeHandle) != ERROR_SUCCESS)
-        return 3;
-    if (PdhAddCounter(gpuPerfCounterQueryHandle, L"\\GPU Process Memory(*)\\Shared Usage", 0, &gpuPerfCounterSharedUsageHandle) != ERROR_SUCCESS)
-        return 3;
-    if (PdhAddCounter(gpuPerfCounterQueryHandle, L"\\GPU Process Memory(*)\\Dedicated Usage", 0, &gpuPerfCounterDedicatedUsageHandle) != ERROR_SUCCESS)
-        return 3;
-    if (PdhAddCounter(gpuPerfCounterQueryHandle, L"\\GPU Process Memory(*)\\Total Committed", 0, &gpuPerfCounterCommittedUsageHandle) != ERROR_SUCCESS)
-        return 3;
-
-    return 0;
-}
-
-void gpuCountersPrepareBefore() {
-    PdhCollectQueryDataEx(gpuPerfCounterQueryHandle, 1, gpuCounterQueryEvent);
-}
-
-void gpuCountersClose() {
-    if (gpuPerfCounterQueryHandle)
-        PdhCloseQuery(gpuPerfCounterQueryHandle);
-    if (gpuCounterQueryEvent)
-        NtClose(gpuCounterQueryEvent);
-}
-
-
-NTSTATUS queryGpuCounters() {
-    /*
-
-    MeasureBefore();
     if (!NT_SUCCESS(NtCreateEvent(&gpuCounterQueryEvent, EVENT_ALL_ACCESS, NULL, SynchronizationEvent, FALSE)))
         goto CleanupExit;
-    MeasureAfter(1);
 
-    MeasureBefore();
     if (PdhOpenQuery(NULL, 0, &gpuPerfCounterQueryHandle) != ERROR_SUCCESS)
         goto CleanupExit;
-    MeasureAfter(2);
 
     // \GPU Engine(*)\Running Time
     // \GPU Engine(*)\Utilization Percentage                                                           
@@ -214,7 +172,6 @@ NTSTATUS queryGpuCounters() {
     // \GPU Local Adapter Memory(*)\Local Usage
     // \GPU Non Local Adapter Memory(*)\Non Local Usage
 
-    MeasureBefore();
     if (PdhAddCounter(gpuPerfCounterQueryHandle, L"\\GPU Engine(*)\\Utilization Percentage", 0, &gpuPerfCounterRunningTimeHandle) != ERROR_SUCCESS)
         goto CleanupExit;
     if (PdhAddCounter(gpuPerfCounterQueryHandle, L"\\GPU Process Memory(*)\\Shared Usage", 0, &gpuPerfCounterSharedUsageHandle) != ERROR_SUCCESS)
@@ -223,108 +180,111 @@ NTSTATUS queryGpuCounters() {
         goto CleanupExit;
     if (PdhAddCounter(gpuPerfCounterQueryHandle, L"\\GPU Process Memory(*)\\Total Committed", 0, &gpuPerfCounterCommittedUsageHandle) != ERROR_SUCCESS)
         goto CleanupExit;
-    MeasureAfter(3);
 
-    MeasureBefore();
     if (PdhCollectQueryDataEx(gpuPerfCounterQueryHandle, 1, gpuCounterQueryEvent) != ERROR_SUCCESS)
         goto CleanupExit;
-    MeasureAfter(4);*/
 
-    MeasureShowTime(5);
-    MeasureBefore();
-    if (NtWaitForSingleObject(gpuCounterQueryEvent, FALSE, NULL) != WAIT_OBJECT_0)
-        return 1;
-    MeasureAfter(5);
+    for (;;) {
+        if (NtWaitForSingleObject(gpuCounterQueryEvent, FALSE, NULL) != WAIT_OBJECT_0)
+            break;
 
-    //MeasureBefore();
-    if (GetCounterArrayBuffer(
-        gpuPerfCounterRunningTimeHandle,
-        PDH_FMT_DOUBLE,
-        &bufferCount,
-        &buffer
-    )) {
-        //MeasureAfter(6);
-        for (ULONG i = 0; i < bufferCount; i++) {
-            PPDH_FMT_COUNTERVALUE_ITEM entry = PTR_ADD_OFFSET(buffer, sizeof(PDH_FMT_COUNTERVALUE_ITEM) * i);
+        AquireGpuLock();
+        if (GetCounterArrayBuffer(
+            gpuPerfCounterRunningTimeHandle,
+            PDH_FMT_DOUBLE,
+            &bufferCount,
+            &buffer
+        )) {
+            //AquireGpuLock();
+            for (ULONG i = 0; i < bufferCount; i++) {
+                PPDH_FMT_COUNTERVALUE_ITEM entry = PTR_ADD_OFFSET(buffer, sizeof(PDH_FMT_COUNTERVALUE_ITEM) * i);
 
-            if (entry->FmtValue.CStatus)
-                continue;
-            if (entry->FmtValue.doubleValue == 0)
-                continue;
+                if (entry->FmtValue.CStatus)
+                    continue;
+                if (entry->FmtValue.doubleValue == 0)
+                    continue;
 
-            ParseGpuEngineUtilizationCounter(entry->szName, entry->FmtValue.doubleValue);
+                ParseGpuEngineUtilizationCounter(entry->szName, entry->FmtValue.doubleValue);
+            }
+            //ReleaseGpuLock();
+
+            free(buffer);
         }
 
-        free(buffer);
-    }
+        if (GetCounterArrayBuffer(
+            gpuPerfCounterDedicatedUsageHandle,
+            PDH_FMT_LARGE,
+            &bufferCount,
+            &buffer
+        )) {
+            //AquireGpuLock();
+            for (ULONG i = 0; i < bufferCount; i++) {
+                PPDH_FMT_COUNTERVALUE_ITEM entry = PTR_ADD_OFFSET(buffer, sizeof(PDH_FMT_COUNTERVALUE_ITEM) * i);
 
-    if (GetCounterArrayBuffer(
-        gpuPerfCounterDedicatedUsageHandle,
-        PDH_FMT_LARGE,
-        &bufferCount,
-        &buffer
-    )) {
-        for (ULONG i = 0; i < bufferCount; i++) {
-            PPDH_FMT_COUNTERVALUE_ITEM entry = PTR_ADD_OFFSET(buffer, sizeof(PDH_FMT_COUNTERVALUE_ITEM) * i);
+                if (entry->FmtValue.CStatus)
+                    continue;
+                if (entry->FmtValue.largeValue == 0)
+                    continue;
 
-            if (entry->FmtValue.CStatus)
-                continue;
-            if (entry->FmtValue.largeValue == 0)
-                continue;
+                ParseGpuProcessMemoryDedicatedUsageCounter(entry->szName, entry->FmtValue.largeValue);
+            }
+            //ReleaseGpuLock();
 
-            ParseGpuProcessMemoryDedicatedUsageCounter(entry->szName, entry->FmtValue.largeValue);
+            free(buffer);
         }
 
-        free(buffer);
-    }
+        if (GetCounterArrayBuffer(
+            gpuPerfCounterSharedUsageHandle,
+            PDH_FMT_LARGE,
+            &bufferCount,
+            &buffer
+        )) {
+            //AquireGpuLock();
+            for (ULONG i = 0; i < bufferCount; i++) {
+                PPDH_FMT_COUNTERVALUE_ITEM entry = PTR_ADD_OFFSET(buffer, sizeof(PDH_FMT_COUNTERVALUE_ITEM) * i);
 
-    if (GetCounterArrayBuffer(
-        gpuPerfCounterSharedUsageHandle,
-        PDH_FMT_LARGE,
-        &bufferCount,
-        &buffer
-    )) {
-        for (ULONG i = 0; i < bufferCount; i++) {
-            PPDH_FMT_COUNTERVALUE_ITEM entry = PTR_ADD_OFFSET(buffer, sizeof(PDH_FMT_COUNTERVALUE_ITEM) * i);
+                if (entry->FmtValue.CStatus)
+                    continue;
+                if (entry->FmtValue.largeValue == 0)
+                    continue;
 
-            if (entry->FmtValue.CStatus)
-                continue;
-            if (entry->FmtValue.largeValue == 0)
-                continue;
+                ParseGpuProcessMemorySharedUsageCounter(entry->szName, entry->FmtValue.largeValue);
+            }
+            //ReleaseGpuLock();
 
-            ParseGpuProcessMemorySharedUsageCounter(entry->szName, entry->FmtValue.largeValue);
+            free(buffer);
         }
 
-        free(buffer);
-    }
+        if (GetCounterArrayBuffer(
+            gpuPerfCounterCommittedUsageHandle,
+            PDH_FMT_LARGE,
+            &bufferCount,
+            &buffer
+        )) {
+            //AquireGpuLock();
+            for (ULONG i = 0; i < bufferCount; i++) {
+                PPDH_FMT_COUNTERVALUE_ITEM entry = PTR_ADD_OFFSET(buffer, sizeof(PDH_FMT_COUNTERVALUE_ITEM) * i);
 
-    if (GetCounterArrayBuffer(
-        gpuPerfCounterCommittedUsageHandle,
-        PDH_FMT_LARGE,
-        &bufferCount,
-        &buffer
-    )) {
-        for (ULONG i = 0; i < bufferCount; i++) {
-            PPDH_FMT_COUNTERVALUE_ITEM entry = PTR_ADD_OFFSET(buffer, sizeof(PDH_FMT_COUNTERVALUE_ITEM) * i);
+                if (entry->FmtValue.CStatus)
+                    continue;
+                if (entry->FmtValue.largeValue == 0)
+                    continue;
 
-            if (entry->FmtValue.CStatus)
-                continue;
-            if (entry->FmtValue.largeValue == 0)
-                continue;
+                ParseGpuProcessMemoryCommitUsageCounter(entry->szName, entry->FmtValue.largeValue);
+            }
+            //ReleaseGpuLock();
 
-            ParseGpuProcessMemoryCommitUsageCounter(entry->szName, entry->FmtValue.largeValue);
+            free(buffer);
         }
+        ReleaseGpuLock();
 
-        free(buffer);
+        GpuUpdateRoundComplete();
     }
 
-    // Query for next round.
-    MeasureShowTime(10);
-    MeasureBefore();
-    PdhCollectQueryDataEx(gpuPerfCounterQueryHandle, 1, gpuCounterQueryEvent);
-    MeasureAfter(11);
-    MeasureShowTime(11);
+CleanupExit:
 
-    return 0;
+    if (gpuPerfCounterQueryHandle)
+        PdhCloseQuery(gpuPerfCounterQueryHandle);
+    if (gpuCounterQueryEvent)
+        NtClose(gpuCounterQueryEvent);
 }
-

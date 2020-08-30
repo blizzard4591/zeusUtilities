@@ -7,11 +7,7 @@ extern "C" {
 
 #include <Windows.h>
 
-	BOOL gpuCountersInit();
-	void gpuCountersPrepareBefore();
-	void gpuCountersClose();
-
-	NTSTATUS queryGpuCounters();
+	void runGpuQueries();
 
 #ifdef __cplusplus
 }

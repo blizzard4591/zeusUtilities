@@ -2,6 +2,9 @@
 #define GPU_INFO_H
 
 #include <cstdint>
+#include <iostream>
+
+#include <QString>
 
 class GpuInfo {
 public:
@@ -11,6 +14,9 @@ public:
     uint64_t dedicatedMemory;
     uint64_t sharedMemory;
     uint64_t commitMemory;
+    
+    QString toQString();
+    friend std::ostream& operator<<(std::ostream& os, const GpuInfo& gi);
 };
 
 #endif

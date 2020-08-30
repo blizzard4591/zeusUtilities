@@ -9,8 +9,8 @@
 #include <QString>
 #include <QThread>
 
-#include <Windows.h>
-
+#include "gpu_info.h"
+#include "gpu_query_thread.h"
 
 class GpuLoad {
 public:
@@ -18,25 +18,13 @@ public:
     virtual ~GpuLoad();
 
     void update();
-    void reset();
+    
+    void start();
+    void stop();
 
-    double getGpuLoadOfCore(std::size_t core) const;
-    std::size_t getCoreCount() const;
-    std::unordered_map<void*, GpuInfo> const& getCurrentGpuLoad() const { return mGpuInformation; }
-
-    static void updateGpuEngineUtil(uint64_t processId, uint64_t engineId, double value);
-    static void updateGpuMemoryDedicated(uint64_t processId, uint64_t value);
-    static void updateGpuMemoryShared(uint64_t processId, uint64_t value);
-    static void updateGpuMemoryCommit(uint64_t processId, uint64_t value);
-    static void setHadError();
+    std::unordered_map<void*, GpuInfo> getCurrentGpuLoad() const;
 private:
-    static GpuLoad* mInstance;
-
-    void roundReset();
-
-    std::unordered_map<void*, GpuInfo> mGpuInformation;
-    bool mHadError;
-    uint64_t mIterationCount;
+    GpuQueryThread mGpuQueryThread;
 };
 
 #endif

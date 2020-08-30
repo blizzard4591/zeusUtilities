@@ -49,6 +49,10 @@ void MainWindow::addLogItem(QString const& text) {
 void MainWindow::onButtonStartStopClick() {
 	if (mIsStarted) {
 		mTimer.stop();
+		mUi->btnStartStop->setText(QStringLiteral("Stopping..."));
+		mUi->btnStartStop->setEnabled(false);
+
+		mGpuLoad.stop();
 
 		for (int i = 0; i < mPingThreads.size(); ++i) {
 			QThread* pingThread = mPingThreads.at(i);
@@ -68,8 +72,11 @@ void MainWindow::onButtonStartStopClick() {
 		}*/
 
 		mUi->btnStartStop->setText(QStringLiteral("Start Measurement"));
+		mUi->btnStartStop->setEnabled(true);
 	} else {
 		mUi->logWidget->clear();
+		mUi->btnStartStop->setText(QStringLiteral("Starting..."));
+		mUi->btnStartStop->setEnabled(false);
 
 		mTimeStartRecord = QDateTime::currentDateTime();
 		mBytesWritten = 0;
@@ -79,6 +86,9 @@ void MainWindow::onButtonStartStopClick() {
 		QDir topDir(location);
 		if ((!topDir.exists("zeusDebug") && !topDir.mkdir("zeusDebug")) || !topDir.cd("zeusDebug")) {
 			QMessageBox::warning(this, "Error", QStringLiteral("Failed to create output directory 'zeusDebug' in location '%1'.").arg(location));
+
+			mUi->btnStartStop->setText(QStringLiteral("Start Measurement"));
+			mUi->btnStartStop->setEnabled(true);
 			return;
 		}
 
@@ -86,6 +96,9 @@ void MainWindow::onButtonStartStopClick() {
 		mOutputFile.setFileName(outputFileName);
 		if (mOutputFile.exists() || !mOutputFile.open(QFile::WriteOnly)) {
 			QMessageBox::warning(this, "Error", QStringLiteral("Failed to create output file '%1'.").arg(outputFileName));
+
+			mUi->btnStartStop->setText(QStringLiteral("Start Measurement"));
+			mUi->btnStartStop->setEnabled(true);
 			return;
 		}
 
@@ -104,8 +117,6 @@ void MainWindow::onButtonStartStopClick() {
 		mOutputFile.write(QStringLiteral("#     - PID, ImageName\r\n").toUtf8());
 		mOutputFile.write(QStringLiteral("#     - UserTime, KernelTime\r\n").toUtf8());
 		mOutputFile.write(QStringLiteral("#     - WorkingSetSize, PeakWorkingSetSize (both as value and delta to last)\r\n").toUtf8());
-
-		mUi->btnStartStop->setText(QStringLiteral("Stop Measurement"));
 
 		//mMissedFrameCountAtStart = mCbObject.getCurrentMissedFrameCount();
 
@@ -127,11 +138,16 @@ void MainWindow::onButtonStartStopClick() {
 			pingThread->start();
 		}
 
+		mGpuLoad.start();
+
 		mTimer.setSingleShot(false);
 		mTimer.setInterval(interval);
 		//mTimer.setSingleShot(true);
 		//mTimer.setInterval(50);
 		mTimer.start();
+
+		mUi->btnStartStop->setText(QStringLiteral("Stop Measurement"));
+		mUi->btnStartStop->setEnabled(true);
 	}
 	mIsStarted = !mIsStarted;
 }
@@ -150,12 +166,10 @@ void MainWindow::onTimerTimeout() {
 	QDateTime const now = QDateTime::currentDateTimeUtc();
 
 	// GPU
-	QDateTime before = QDateTime::currentDateTime();
+	//QDateTime before = QDateTime::currentDateTime();
 	mGpuLoad.update();
-	QDateTime after = QDateTime::currentDateTime();
-	std::cout << "Took " << before.msecsTo(after) << "ms." << std::endl;
-
-	//return;
+	//QDateTime after = QDateTime::currentDateTime();
+	//std::cout << "Took " << before.msecsTo(after) << "ms." << std::endl;
 
 	// CPU
 	mCpuLoad.update(mGpuLoad.getCurrentGpuLoad());

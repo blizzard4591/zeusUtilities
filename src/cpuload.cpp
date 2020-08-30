@@ -202,6 +202,10 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
                 mArmaPid = (uint64_t)handle;
             }
 
+            if (((uint64_t)handle == 2856) && (gpuLoad.contains(handle))) {
+                std::cout << "GPU ff: " << gpuLoad.at(handle) << std::endl;
+            }
+
             //std::string imageName = ws2s(wImageName);
             //std::cout << "#Threads: " << pointer->NumberOfThreads << ",Image:" << imageName.toStdString() << ",VirtSize:" << pointer->VirtualSize << std::endl;
 

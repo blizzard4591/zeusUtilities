@@ -30,6 +30,10 @@ extern "C" {
         _In_ PWSTR InstanceName,
         _In_ ULONG64 InstanceValue
     );
+
+    VOID AquireGpuLock();
+    VOID ReleaseGpuLock();
+    VOID GpuUpdateRoundComplete();
 }
 
 class GpuQueryThread : public QThread {
@@ -40,13 +44,19 @@ public:
 
     virtual void run() override;
 
+    std::unordered_map<void*, GpuInfo> getCurrentGpuInfo() const;
+
     static void updateGpuEngineUtil(uint64_t processId, uint64_t engineId, double value);
     static void updateGpuMemoryDedicated(uint64_t processId, uint64_t value);
     static void updateGpuMemoryShared(uint64_t processId, uint64_t value);
     static void updateGpuMemoryCommit(uint64_t processId, uint64_t value);
     static void setHadError();
+
+    static void aquireLock();
+    static void releaseLock();
+    static void roundComplete();
 private:
-	QMutex mMutex;
+    mutable QMutex mMutex;
 
     static GpuQueryThread* mInstance;
 
@@ -57,7 +67,7 @@ private:
     std::unordered_map<void*, GpuInfo>* mGpuInformationNext;
 
     bool mHadError;
-    uint64_t mIterationCount;
+    uint64_t mRoundCounter;
 };
 
 #endif
