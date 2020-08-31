@@ -6,6 +6,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 # Set project name
 project (ZeusDebug CXX C)
 
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/cmake/")
 include(CheckIncludeFiles)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
@@ -29,6 +30,8 @@ set(CMAKE_AUTOUIC ON)
 SET(CMAKE_PREFIX_PATH "C:/Qt/5.15.0/msvc2019_64/lib/cmake/")
 SET(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/cmake/")
 
+set(ZEUSDEBUG_CUSTOM_VERSION_STRING "" CACHE STRING "Disables Git version number checking and uses the custom string instead. Should be of the form 0.1.2-34-567890ab, i.e. major.minor.patch-commitsSinceTag-shortHash")
+
 # Find the Qt library
 find_package(Qt5Core REQUIRED)
 find_package(Qt5Gui REQUIRED)
@@ -51,6 +54,67 @@ if(MSVC)
 	add_definitions(-DUNICODE)
 	add_definitions(-D_UNICODE)
 endif()
+
+#
+# Make a version file containing the current version from git.
+#
+
+# First check if this is a Git checkout or if a custom version tag should be used.
+if ((NOT "${ZEUSDEBUG_CUSTOM_VERSION_STRING}" STREQUAL "") AND (NOT "${ZEUSDEBUG_CUSTOM_VERSION_STRING}" MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+\\-[0-9]+\\-[a-z0-9]+(\\-.*)?$"))
+	message(FATAL_ERROR "Builtin version information: A custom version string is set, but it is malformed. Should be: 0.1.2-34-567890ab, i.e. major.minor.patch-commitsSinceTag-shortHash")
+endif()
+
+set(ZEUSDEBUG_GIT_VERSION_STRING "")
+if (NOT "${ZEUSDEBUG_CUSTOM_VERSION_STRING}" STREQUAL "")
+	message(STATUS "Builtin version information: custom version string set, using ${ZEUSDEBUG_CUSTOM_VERSION_STRING}")
+	set(ZEUSDEBUG_GIT_VERSION_STRING "${ZEUSDEBUG_CUSTOM_VERSION_STRING}")
+elseif (NOT EXISTS "${PROJECT_SOURCE_DIR}/.git")
+	message(STATUS "Builtin version information: .git folder non-existant, falling back to 0.0.0-0-00000000")
+	set(ZEUSDEBUG_GIT_VERSION_STRING "0.0.0-0-00000000")
+else()
+	message(STATUS "Builtin version information: .git folder exists, using git_describe_checkout")
+	include(GetGitRevisionDescription)
+	git_describe_checkout(ZEUSDEBUG_GIT_VERSION_STRING)
+endif()
+
+if ("${ZEUSDEBUG_GIT_VERSION_STRING}" MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+\\-[0-9]+\\-[a-z0-9]+(\\-.*)?$")
+	# Parse the git Tag into variables
+	string(REGEX REPLACE "^([0-9]+)\\..*" "\\1" ZEUSDEBUG_CPP_VERSION_MAJOR "${ZEUSDEBUG_GIT_VERSION_STRING}")
+	string(REGEX REPLACE "^[0-9]+\\.([0-9]+).*" "\\1" ZEUSDEBUG_CPP_VERSION_MINOR "${ZEUSDEBUG_GIT_VERSION_STRING}")
+	string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" ZEUSDEBUG_CPP_VERSION_PATCH "${ZEUSDEBUG_GIT_VERSION_STRING}")
+	string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.[0-9]+\\-([0-9]+)\\-.*" "\\1" ZEUSDEBUG_CPP_VERSION_COMMITS_AHEAD "${ZEUSDEBUG_GIT_VERSION_STRING}")
+	string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.[0-9]+\\-[0-9]+\\-([a-z0-9]+).*" "\\1" ZEUSDEBUG_CPP_VERSION_HASH "${ZEUSDEBUG_GIT_VERSION_STRING}")
+	string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.[0-9]+\\-[0-9]+\\-[a-z0-9]+\\-(.*)" "\\1" ZEUSDEBUG_CPP_VERSION_APPENDIX "${ZEUSDEBUG_GIT_VERSION_STRING}")
+	if ("${ZEUSDEBUG_CPP_VERSION_APPENDIX}" MATCHES "^.*dirty.*$")
+		set(ZEUSDEBUG_CPP_VERSION_DIRTY 1)
+	else()
+		set(ZEUSDEBUG_CPP_VERSION_DIRTY 0)
+	endif()
+message(STATUS "ZeusDebug - Version information: ${ZEUSDEBUG_CPP_VERSION_MAJOR}.${ZEUSDEBUG_CPP_VERSION_MINOR}.${ZEUSDEBUG_CPP_VERSION_PATCH} (${ZEUSDEBUG_CPP_VERSION_COMMITS_AHEAD} commits ahead of Tag) build from ${ZEUSDEBUG_CPP_VERSION_HASH} (Dirty: ${ZEUSDEBUG_CPP_VERSION_DIRTY})")
+else()
+	message(STATUS "No GIT support, no tags fetched or other problems. Defaulting to version 0.0.0-0-00000000 (result was ${ZEUSDEBUG_GIT_VERSION_STRING})")
+	set(ZEUSDEBUG_CPP_VERSION_MAJOR 0)
+	set(ZEUSDEBUG_CPP_VERSION_MINOR 0)
+	set(ZEUSDEBUG_CPP_VERSION_PATCH 0)
+	set(ZEUSDEBUG_CPP_VERSION_COMMITS_AHEAD 0)
+	set(ZEUSDEBUG_CPP_VERSION_HASH "00000000")
+	set(ZEUSDEBUG_CPP_VERSION_DIRTY 0)
+endif()
+
+# Generate a version string
+set(ZEUSDEBUG_VERSION_NUM "${ZEUSDEBUG_CPP_VERSION_MAJOR}.${ZEUSDEBUG_CPP_VERSION_MINOR}.${ZEUSDEBUG_CPP_VERSION_PATCH}")
+set(ZEUSDEBUG_VERSION "${ZEUSDEBUG_CPP_VERSION_MAJOR}.${ZEUSDEBUG_CPP_VERSION_MINOR}.${ZEUSDEBUG_CPP_VERSION_PATCH}")
+if (ZEUSDEBUG_CPP_VERSION_COMMITS_AHEAD GREATER 0)
+	set(ZEUSDEBUG_VERSION "${ZEUSDEBUG_VERSION}+${ZEUSDEBUG_CPP_VERSION_COMMITS_AHEAD}")
+endif()
+set(ZEUSDEBUG_VERSION "${ZEUSDEBUG_VERSION}-${ZEUSDEBUG_CPP_VERSION_HASH}")
+
+# Configure a file to pass the ZeusDebug version to the source code
+configure_file (
+	"${PROJECT_SOURCE_DIR}/version.cpp.in"
+	"${PROJECT_BINARY_DIR}/include/version.cpp"
+)
+
 
 if (WIN32)
 	# Cannot use check_library_exists because the symbol is always declared as char(*)(void)
@@ -86,7 +150,7 @@ QT5_WRAP_UI(ZEUSDEBUG_FORMS_HEADERS ${ZEUSDEBUG_FORMS})
 QT5_ADD_RESOURCES(ZEUSDEBUG_RESOURCESOURCES ${ZEUSDEBUG_RESOURCES})
 
 # Add the executables
-add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG_SOURCES_CPP} ${ZEUSDEBUG_RESOURCESOURCES} ${ZEUSDEBUG_FORMS_HEADERS})
+add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG_SOURCES_CPP} ${ZEUSDEBUG_RESOURCESOURCES} ${ZEUSDEBUG_FORMS_HEADERS} "${PROJECT_BINARY_DIR}/include/version.cpp")
 
 if (MSVC)
 	set_target_properties(zeusDebug PROPERTIES LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")

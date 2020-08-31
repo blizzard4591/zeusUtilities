@@ -26,6 +26,10 @@ public:
 public slots:
 	void onButtonStartStopClick();
     void onTimerTimeout();
+    void menuAboutAboutOnClick();
+    void menuAboutAboutQtOnClick();
+    void menuFileOpenLogDirectoryOnClick();
+    void menuFileQuitOnClick();
 
     void onPingDone(quint64 roundId, quint64 pingId, Ping::PingResponse pingResponse);
 private:

@@ -1,0 +1,41 @@
+#include "Version.h"
+
+
+// The major version of ZeusDebug
+const unsigned Version::versionMajor = @ZEUSDEBUG_CPP_VERSION_MAJOR@;
+
+// The minor version of ZeusDebug
+const unsigned Version::versionMinor = @ZEUSDEBUG_CPP_VERSION_MINOR@;
+
+// The patch version of ZeusDebug
+const unsigned Version::versionPatch = @ZEUSDEBUG_CPP_VERSION_PATCH@;
+
+// The short hash of the git commit this build is based on
+const std::string Version::gitRevisionHash = "@ZEUSDEBUG_CPP_VERSION_HASH@";
+
+// How many commits passed since the last tag was set
+const unsigned Version::commitsAhead = @ZEUSDEBUG_CPP_VERSION_COMMITS_AHEAD@;
+
+// "0" iff no files were modified in the checkout, "1" else
+const unsigned Version::dirty = @ZEUSDEBUG_CPP_VERSION_DIRTY@;
+
+// The system which has compiled ZeusDebug
+const std::string Version::systemName = "@CMAKE_SYSTEM_NAME@";
+
+// The size of a pointer of the system that has compiled ZeusDebug
+const std::string Version::systemPtrSize = "@ZEUSDEBUG_CPP_POINTER_SIZE@";
+
+// The system version which has compiled ZeusDebug
+const std::string Version::systemVersion = "@CMAKE_SYSTEM_VERSION@";
+
+// The build type that was used to build ZeusDebug
+#if (defined(_MSC_VER) && defined(_DEBUG))
+const std::string Version::buildType = "Debug";
+#elif (defined(_MSC_VER) && !defined(_DEBUG))
+const std::string Version::buildType = "Release";
+#else
+const std::string Version::buildType = "@CMAKE_BUILD_TYPE@";
+#endif
+
+// The compiler version that was used to build ZeusDebug
+const std::string Version::cxxCompiler = "@ZEUSDEBUG_COMPILED_BY@ @CMAKE_CXX_COMPILER_VERSION@";

@@ -5,13 +5,22 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QStandardPaths>
+#include <QProcessEnvironment>
 
 #include <iostream>
 
 #include "gpu_query.h"
+#include "version.h"
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mPingCounter(0), mCpuLoad(), mGpuLoad(), mDebugCounter(0) {
     mUi->setupUi(this);
+
+	// Menu Items
+	QObject::connect(mUi->actionAbout, SIGNAL(triggered()), this, SLOT(menuAboutAboutOnClick()));
+	QObject::connect(mUi->actionAbout_Qt, SIGNAL(triggered()), this, SLOT(menuAboutAboutQtOnClick()));
+	QObject::connect(mUi->actionOpen_Log_Directory, SIGNAL(triggered()), this, SLOT(menuFileOpenLogDirectoryOnClick()));
+	QObject::connect(mUi->actionQuit, SIGNAL(triggered()), this, SLOT(menuFileQuitOnClick()));
+
 
 	QObject::connect(mUi->btnStartStop, SIGNAL(clicked()), this, SLOT(onButtonStartStopClick()));
 	QObject::connect(&mTimer, SIGNAL(timeout()), this, SLOT(onTimerTimeout()));
@@ -280,4 +289,31 @@ void MainWindow::updateStats() {
 void MainWindow::clearStats() {
 	mUi->lblLogStats->setText(QStringLiteral(""));
 	mBytesWritten = 0;
+}
+
+void MainWindow::menuAboutAboutOnClick() {
+	QMessageBox::about(this, "ZeusDebug - About", QString("<h2>ZeusDebug</h2><br><br>%1<br>%2<br><br>A quick-and-dirty utility for tracking issues with a system while playing ARMA.<br><br>Copyright (C) 2020 by Philipp Berger<br>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version.<br>See LICENSE for further information.<br><br>Don't be a jerk!").arg(QString::fromStdString(Version::longVersionString())).arg(QString::fromStdString(Version::buildInfo())));
+}
+
+void MainWindow::menuAboutAboutQtOnClick() {
+	QMessageBox::aboutQt(this, "About Qt");
+}
+
+void MainWindow::menuFileOpenLogDirectoryOnClick() {
+	const QFileInfo fileInfo(mUi->edtOutputDir->text());
+	/*const QString explorer = QProcessEnvironment::systemEnvironment().searchInPath(QLatin1String("explorer.exe"));
+	if (explorer.isEmpty()) {
+		QMessageBox::warning(this, tr("Launching Windows Explorer Failed"), tr("Could not find explorer.exe in path to launch Windows Explorer."));
+		return;
+	}
+	QStringList param;
+	if (!fileInfo.isDir())
+		param += QLatin1String("/select,");
+	param += QDir::toNativeSeparators(fileInfo.canonicalFilePath());
+	QProcess::startDetached(explorer.toString(), param);
+		*/
+}
+
+void MainWindow::menuFileQuitOnClick() {
+	QApplication::exit(0);
 }
