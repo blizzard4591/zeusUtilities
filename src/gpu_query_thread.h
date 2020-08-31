@@ -33,7 +33,6 @@ extern "C" {
 
     VOID AquireGpuLock();
     VOID ReleaseGpuLock();
-    VOID GpuUpdateRoundComplete();
 }
 
 class GpuQueryThread : public QThread {
@@ -54,7 +53,6 @@ public:
 
     static void aquireLock();
     static void releaseLock();
-    static void roundComplete();
 private:
     mutable QMutex mMutex;
 
@@ -68,6 +66,9 @@ private:
 
     bool mHadError;
     uint64_t mRoundCounter;
+    volatile bool mContinueRunning;
+
+    void roundComplete();
 };
 
 #endif

@@ -7,7 +7,10 @@ extern "C" {
 
 #include <Windows.h>
 
-	void runGpuQueries();
+	LONG gpuQueriesInit();
+	VOID gpuQueriesCleanup();
+
+	LONG runGpuQueries();
 
 #ifdef __cplusplus
 }

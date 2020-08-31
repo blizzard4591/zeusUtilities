@@ -60,6 +60,9 @@ private:
     quint64 mBytesWritten;
 
     void addLogItem(QString const& text);
+    QString formatSize(quint64 number) const;
+    void updateStats();
+    void clearStats();
 };
 
 #endif // MAINWINDOW_H

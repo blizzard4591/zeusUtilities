@@ -29,6 +29,7 @@ void GpuLoad::start() {
 }
 
 void GpuLoad::stop() {
+    mGpuQueryThread.requestInterruption();
     mGpuQueryThread.quit();
     mGpuQueryThread.wait();
 }

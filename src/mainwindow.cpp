@@ -43,7 +43,21 @@ MainWindow::~MainWindow() {
 void MainWindow::addLogItem(QString const& text) {
 	QDateTime const now = QDateTime::currentDateTimeUtc();
 
-	mUi->logWidget->addItem(QString("[%1]: %2").arg(now.toString("dd.MM.yyyy hh:mm:ss.zzz")).arg(text));
+	mUi->logWidget->addItem(QString("[%1 UTC]: %2").arg(now.toString("dd.MM.yyyy hh:mm:ss.zzz")).arg(text));
+}
+
+QString MainWindow::formatSize(quint64 number) const {
+	if (number > 1073741824uLL) {
+		double const value = number / 1073741824.0;
+		return QStringLiteral("%1 GBytes").arg(value, 0, 'f', 2);
+	} else if (number > 1048576uLL) {
+		double const value = number / 1048576.0;
+		return QStringLiteral("%1 MBytes").arg(value, 0, 'f', 2);
+	} else if (number > 1024uLL) {
+		double const value = number / 1024.0;
+		return QStringLiteral("%1 KBytes").arg(value, 0, 'f', 2);
+	}
+	return QStringLiteral("%1 Bytes").arg(number);
 }
 
 void MainWindow::onButtonStartStopClick() {
@@ -70,6 +84,8 @@ void MainWindow::onButtonStartStopClick() {
 		if (mMissedFrameCountAtStart < missedFrameCountAtEnd) {
 			// Meh, we lost information :(
 		}*/
+		addLogItem(QStringLiteral("Stopped measurement after %1 iterations (%2 of log data written).").arg(mPingCounter).arg(formatSize(mBytesWritten)));
+		clearStats();
 
 		mUi->btnStartStop->setText(QStringLiteral("Start Measurement"));
 		mUi->btnStartStop->setEnabled(true);
@@ -79,7 +95,8 @@ void MainWindow::onButtonStartStopClick() {
 		mUi->btnStartStop->setEnabled(false);
 
 		mTimeStartRecord = QDateTime::currentDateTime();
-		mBytesWritten = 0;
+		clearStats();
+		mPingCounter = 0;
 
 		// Try to open output
 		QString const location = mUi->edtOutputDir->text();
@@ -117,6 +134,7 @@ void MainWindow::onButtonStartStopClick() {
 		mOutputFile.write(QStringLiteral("#     - PID, ImageName\r\n").toUtf8());
 		mOutputFile.write(QStringLiteral("#     - UserTime, KernelTime\r\n").toUtf8());
 		mOutputFile.write(QStringLiteral("#     - WorkingSetSize, PeakWorkingSetSize (both as value and delta to last)\r\n").toUtf8());
+		mOutputFile.write(QStringLiteral("#     - GPU utilization, GPU dedicated memory used\r\n").toUtf8());
 
 		//mMissedFrameCountAtStart = mCbObject.getCurrentMissedFrameCount();
 
@@ -191,8 +209,8 @@ void MainWindow::onTimerTimeout() {
 			loadStringDbg += ", ";
 			loadString += ";";
 		}
-		loadStringDbg += QString("Core %1: %2").arg(i).arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'g', 2);
-		loadString += QString("%1").arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'g', 2);
+		loadStringDbg += QString("Core %1: %2").arg(i).arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'f', 2);
+		loadString += QString("%1").arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'f', 2);
 	}
 	if (showLog) {
 		addLogItem(loadStringDbg);
@@ -207,6 +225,7 @@ void MainWindow::onTimerTimeout() {
 	for (int i = 0; i < processesStates.size(); ++i) {
 		mBytesWritten += mOutputFile.write(QStringLiteral("2;%1;%2\r\n").arg(roundInfo.startTime).arg(processesStates.at(i)).toUtf8());
 	}
+	updateStats();
 
 	mRemainingPings.insert(mPingCounter, roundInfo);
 
@@ -254,11 +273,20 @@ void MainWindow::onPingDone(quint64 roundId, quint64 pingId, Ping::PingResponse 
 			}
 			mBytesWritten += mOutputFile.write(stateOut.toUtf8());
 
-			// Stats
-			double const hours = mTimeStartRecord.msecsTo(QDateTime::currentDateTime()) / 1000.0 / 60.0 / 60.0;
-			quint64 bytesPerHour(mBytesWritten / hours);
-			mUi->lblLogStats->setText(QStringLiteral("%1 Bytes (~%2 Bytes per hour)").arg(mBytesWritten).arg(bytesPerHour));
+			updateStats();
 		}
 		mRemainingPings.remove(roundId);
 	}
+}
+
+void MainWindow::updateStats() {
+	// Stats
+	double const hours = mTimeStartRecord.msecsTo(QDateTime::currentDateTime()) / (1000.0 * 60.0 * 60.0);
+	quint64 const bytesPerHour = (mBytesWritten / hours);
+	mUi->lblLogStats->setText(QStringLiteral("%1 (~%2 per hour)").arg(formatSize(mBytesWritten)).arg(formatSize(bytesPerHour)));
+}
+
+void MainWindow::clearStats() {
+	mUi->lblLogStats->setText(QStringLiteral(""));
+	mBytesWritten = 0;
 }

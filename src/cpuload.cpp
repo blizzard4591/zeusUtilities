@@ -10,23 +10,6 @@
 #include <string>
 #include <QString>
 
-ProcessInfo::ProcessInfo(PFULL_SYSTEM_PROCESS_INFORMATION processInformation) : ImageName(QString::fromStdWString(std::wstring(processInformation->ImageName.Buffer, processInformation->ImageName.Length / sizeof(WCHAR)))), UniqueProcessId(processInformation->UniqueProcessId), UserTime(processInformation->UserTime), KernelTime(processInformation->KernelTime), PeakVirtualSize(processInformation->PeakVirtualSize), VirtualSize(processInformation->VirtualSize), PeakWorkingSetSize(processInformation->PeakWorkingSetSize), WorkingSetSize(processInformation->WorkingSetSize), PagefileUsage(processInformation->PagefileUsage), PeakPagefileUsage(processInformation->PeakPagefileUsage), PrivatePageCount(processInformation->PrivatePageCount) {
-    //
-}
-
-void ProcessInfo::update(PFULL_SYSTEM_PROCESS_INFORMATION processInformation) {
-    UserTime = processInformation->UserTime;
-    KernelTime = processInformation->KernelTime;
-
-    PeakVirtualSize = processInformation->PeakVirtualSize;
-    VirtualSize = processInformation->VirtualSize;
-    PeakWorkingSetSize = processInformation->PeakWorkingSetSize;
-    WorkingSetSize = processInformation->WorkingSetSize;
-    PagefileUsage = processInformation->PagefileUsage;
-    PeakPagefileUsage = processInformation->PeakPagefileUsage;
-    PrivatePageCount = processInformation->PrivatePageCount;
-}
-
 CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mProcessHistory(), mStateString(), mProcessesStrings(), mIsArmaRunning(false) {
     SYSTEM_INFO info = { 0 };
     GetSystemInfo(&info);
@@ -176,8 +159,17 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
                 mProcessHistory.at(handle).update(pointer);
             }
 
+            if (gpuLoad.contains(handle)) {
+                mProcessHistory.at(handle).updateGpuData(gpuLoad.at(handle));
+            } else {
+                mProcessHistory.at(handle).updateGpuData();
+            }
+
             double const percentLoad = 100.0 * (mProcessHistory.at(handle).KernelTime.delta + mProcessHistory.at(handle).UserTime.delta) / overallTimeDelta;
             double const percentMemory = 100.0 * mProcessHistory.at(handle).WorkingSetSize.value / totalPhysicalMemory;
+
+            bool const processUsesGpuMoreThan5Percent = gpuLoad.contains(handle) && (gpuLoad.at(handle).utilization >= 0.05);
+            bool const processUsesGpuMemoryMoreThan100MB = gpuLoad.contains(handle) && (gpuLoad.at(handle).dedicatedMemory >= (100uLL * 1024uLL * 1024uLL));
 
             // For debugging
             /*
@@ -190,8 +182,8 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
             bool const isArma32Bit = mProcessHistory.at(handle).ImageName.compare(QStringLiteral("arma3.exe"), Qt::CaseInsensitive) == 0;
             bool const isArma64Bit = mProcessHistory.at(handle).ImageName.compare(QStringLiteral("arma3_x64.exe"), Qt::CaseInsensitive) == 0;
 
-            if (mProcessHistory.at(handle).ImageName.contains(QStringLiteral("arma3")) || (percentLoad >= 10.0) || (percentMemory >= 10.0)) {
-                if (mProcessHistory.at(handle).ImageName.compare(QStringLiteral("Memory Compression")) != 0) {
+            if (mProcessHistory.at(handle).ImageName.contains(QStringLiteral("arma3")) || (percentLoad >= 10.0) || (percentMemory >= 10.0) || processUsesGpuMoreThan5Percent || processUsesGpuMemoryMoreThan100MB) {
+                if ((mProcessHistory.at(handle).ImageName.compare(QStringLiteral("Memory Compression")) != 0) && (mProcessHistory.at(handle).ImageName.compare(QStringLiteral("dwm.exe")) != 0)) {
                     mProcessesStrings.append(mProcessHistory.at(handle).toQString());
                 }
             }
@@ -221,41 +213,4 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
     }
 
     ++mIterationCount;
-}
-
-QString DeltaValueLI::toQString() {
-    return QStringLiteral("%1;%2").arg(value.QuadPart).arg(delta);
-}
-
-QString DeltaValueST::toQString() {
-    return QStringLiteral("%1;%2").arg(value).arg(delta);
-}
-
-QString ProcessInfo::toQString() {
-    return QStringLiteral("%1;%2;%3;%4;%5;%6").arg((uint64_t)UniqueProcessId).arg(ImageName).arg(UserTime.toQString()).arg(KernelTime.toQString()).arg(WorkingSetSize.toQString()).arg(PeakWorkingSetSize.toQString());
-}
-
-std::ostream& operator<<(std::ostream& os, const DeltaValueLI& d) {
-    os << d.value.QuadPart << "(d = " << d.delta << ")";
-    return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const DeltaValueST& d) {
-    os << d.value << "(d = " << d.delta << ")";
-    return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const ProcessInfo& pi) {
-    os << pi.ImageName.toStdString() << "(PID = " << (uint64_t)pi.UniqueProcessId;
-    os << ", UserTime = " << pi.UserTime;
-    os << ", KernelTime = " << pi.KernelTime;
-    //os << ", PeakVirtualSize = " << pi.PeakVirtualSize;
-    //os << ", VirtualSize = " << pi.VirtualSize;
-    os << ", PeakWorkingSetSize = " << pi.PeakWorkingSetSize;
-    os << ", WorkingSetSize = " << pi.WorkingSetSize;
-    //os << ", PagefileUsage = " << pi.PagefileUsage;
-    //os << ", PeakPagefileUsage = " << pi.PeakPagefileUsage;
-    //os << ", PrivatePageCount = " << pi.PrivatePageCount;
-    os << ")";
-    return os;
 }

@@ -167,13 +167,9 @@ VOID ReleaseGpuLock() {
     GpuQueryThread::releaseLock();
 }
 
-VOID GpuUpdateRoundComplete() {
-    GpuQueryThread::roundComplete();
-}
-
 GpuQueryThread* GpuQueryThread::mInstance = nullptr;
 
-GpuQueryThread::GpuQueryThread() : mGpuInformationA(), mGpuInformationB(), mGpuInformationCurrent(&mGpuInformationA), mGpuInformationNext(&mGpuInformationB), mHadError(false), mRoundCounter(0) {
+GpuQueryThread::GpuQueryThread() : mGpuInformationA(), mGpuInformationB(), mGpuInformationCurrent(&mGpuInformationA), mGpuInformationNext(&mGpuInformationB), mHadError(false), mRoundCounter(0), mContinueRunning(true) {
     if (mInstance != nullptr) {
         throw;
     }
@@ -192,14 +188,12 @@ std::unordered_map<void*, GpuInfo> GpuQueryThread::getCurrentGpuInfo() const {
 }
 
 void GpuQueryThread::roundComplete() {
-    if (mInstance != nullptr) {
-        QMutexLocker lock(&mInstance->mMutex);
+    QMutexLocker lock(&mMutex);
 
-        std::swap(mInstance->mGpuInformationCurrent, mInstance->mGpuInformationNext);
-        mInstance->mHadError = false;
-        mInstance->mGpuInformationNext->clear();
-        ++mInstance->mRoundCounter;
-    }
+    std::swap(mGpuInformationCurrent, mGpuInformationNext);
+    mHadError = false;
+    mGpuInformationNext->clear();
+    ++mRoundCounter;
 }
 
 void GpuQueryThread::aquireLock() {
@@ -261,11 +255,25 @@ void GpuQueryThread::setHadError() {
 }
 
 void GpuQueryThread::run() {
+    mContinueRunning = true;
     mRoundCounter = 0;
     mGpuInformationA.clear();
     mGpuInformationB.clear();
 
-    while (true) {
-        runGpuQueries();
+    LONG result = gpuQueriesInit();
+    if (result != 0) {
+        this->exit(result);
+        return;
     }
+
+    while (mContinueRunning && !isInterruptionRequested()) {
+        result = runGpuQueries();
+        if (result != 0) {
+            this->exit(result);
+            return;
+        }
+        roundComplete();
+    }
+
+    gpuQueriesCleanup();
 }
