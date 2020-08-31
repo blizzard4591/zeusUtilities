@@ -15,6 +15,8 @@
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mPingCounter(0), mCpuLoad(), mGpuLoad(), mDebugCounter(0) {
     mUi->setupUi(this);
 
+	this->setWindowTitle(QStringLiteral("ZeusOps Debug Utility v").append(QString::fromStdString(Version::versionWithTagString())));
+
 	// Menu Items
 	QObject::connect(mUi->actionAbout, SIGNAL(triggered()), this, SLOT(menuAboutAboutOnClick()));
 	QObject::connect(mUi->actionAbout_Qt, SIGNAL(triggered()), this, SLOT(menuAboutAboutQtOnClick()));
