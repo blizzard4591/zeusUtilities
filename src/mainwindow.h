@@ -10,8 +10,8 @@
 #include <QVector>
 
 #include "ping.h"
-#include "cpuload.h"
-#include "gpuload.h"
+#include "cpu_load.h"
+#include "gpu_load.h"
 
 namespace Ui {
     class MainWindow;
@@ -28,8 +28,6 @@ public slots:
     void onTimerTimeout();
 
     void onPingDone(quint64 roundId, quint64 pingId, Ping::PingResponse pingResponse);
-
-    void incrementCounter();
 private:
     Ui::MainWindow* mUi;
 

@@ -9,7 +9,7 @@
 #include <QStringList>
 
 #include "process_info.h"
-#include "gpuload.h"
+#include "gpu_load.h"
 
 class CpuLoad {
 public:

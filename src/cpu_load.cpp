@@ -1,4 +1,4 @@
-#include "cpuload.h"
+#include "cpu_load.h"
 
 #include <winternl.h>
 #include <ntstatus.h>

@@ -170,15 +170,6 @@ void MainWindow::onButtonStartStopClick() {
 	mIsStarted = !mIsStarted;
 }
 
-void MainWindow::incrementCounter() {
-	++mDebugCounter;
-	if (mDebugCounter > 2147483647uLL) {
-		mDebugCounter = 0;
-	}
-
-	mUi->spinDebug->setValue(mDebugCounter);
-}
-
 void MainWindow::onTimerTimeout() {
 	bool const showLog = mUi->cboxShowLog->checkState() == Qt::Checked;
 	QDateTime const now = QDateTime::currentDateTimeUtc();

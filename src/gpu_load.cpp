@@ -1,4 +1,4 @@
-#include "gpuload.h"
+#include "gpu_load.h"
 
 #include <ntstatus.h>
 
