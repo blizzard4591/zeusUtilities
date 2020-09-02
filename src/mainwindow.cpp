@@ -78,6 +78,12 @@ QString MainWindow::formatSize(quint64 number) const {
 }
 
 void MainWindow::onButtonStartStopClick() {
+	if (!mEtwQuery.startTraceSession(2836)) {
+		QMessageBox::warning(this, "Failed to start ETW Session", "Could not start ETW trace session, FPS data on game(s) will not be available.");
+	}
+	return;
+
+
 	if (mIsStarted) {
 		mTimer.stop();
 		mUi->btnStartStop->setText(QStringLiteral("Stopping..."));

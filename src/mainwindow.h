@@ -12,6 +12,7 @@
 #include "ping.h"
 #include "cpu_load.h"
 #include "gpu_load.h"
+#include "etw_query.h"
 
 namespace Ui {
     class MainWindow;
@@ -54,6 +55,8 @@ private:
     CpuLoad mCpuLoad;
 
     GpuLoad mGpuLoad;
+
+    EtwQuery mEtwQuery;
 
     quint64 mDebugCounter;
 
