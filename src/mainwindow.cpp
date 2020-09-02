@@ -31,7 +31,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainW
 
 	QStringList locations = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
 	if (locations.size() > 0) {
-		mUi->edtOutputDir->setText(locations.at(0));
+		QDir location(locations.at(0));
+		if ((!location.exists(QStringLiteral("zeusDebug")) && !location.mkdir(QStringLiteral("zeusDebug"))) || !location.cd(QStringLiteral("zeusDebug"))) {
+			// Fallback
+			mUi->edtOutputDir->setText(locations.at(0));
+		} else {
+			mUi->edtOutputDir->setText(location.absolutePath());
+		}
 	}
 }
 
@@ -112,14 +118,6 @@ void MainWindow::onButtonStartStopClick() {
 		// Try to open output
 		QString const location = mUi->edtOutputDir->text();
 		QDir topDir(location);
-		if ((!topDir.exists("zeusDebug") && !topDir.mkdir("zeusDebug")) || !topDir.cd("zeusDebug")) {
-			QMessageBox::warning(this, "Error", QStringLiteral("Failed to create output directory 'zeusDebug' in location '%1'.").arg(location));
-
-			mUi->btnStartStop->setText(QStringLiteral("Start Measurement"));
-			mUi->btnStartStop->setEnabled(true);
-			return;
-		}
-
 		QString const outputFileName = topDir.absoluteFilePath(QStringLiteral("log_%1.txt").arg(QDateTime::currentDateTimeUtc().toString("yyyy_MM_dd_hh_mm_ss_zzz")));
 		mOutputFile.setFileName(outputFileName);
 		if (mOutputFile.exists() || !mOutputFile.open(QFile::WriteOnly)) {

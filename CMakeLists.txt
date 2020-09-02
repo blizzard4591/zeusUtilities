@@ -39,11 +39,6 @@ find_package(Qt5Widgets REQUIRED)
 find_package(Qt5Network REQUIRED)
 find_package(Qt5PrintSupport REQUIRED)
 
-# Add base folder for better inclusion paths
-include_directories("${PROJECT_SOURCE_DIR}")
-include_directories("${PROJECT_SOURCE_DIR}/src")
-include_directories("${PROJECT_SOURCE_DIR}/src/processhacker")
-
 if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest /MP /Gz")
 
@@ -149,12 +144,29 @@ file(GLOB_RECURSE ZEUSDEBUG_RESOURCES ${PROJECT_SOURCE_DIR}/resources/*.qrc)
 QT5_WRAP_UI(ZEUSDEBUG_FORMS_HEADERS ${ZEUSDEBUG_FORMS})
 QT5_ADD_RESOURCES(ZEUSDEBUG_RESOURCESOURCES ${ZEUSDEBUG_RESOURCES})
 
+# Plot Sources
+file(GLOB_RECURSE ZEUSDEBUG_PLOT_HEADERS ${PROJECT_SOURCE_DIR}/srcPlot/*.h)
+file(GLOB_RECURSE ZEUSDEBUG_PLOT_SOURCES_CPP ${PROJECT_SOURCE_DIR}/srcPlot/*.cpp)
+
+file(GLOB_RECURSE ZEUSDEBUG_PLOT_SOURCES_C ${PROJECT_SOURCE_DIR}/srcPlot/*.c)
+file(GLOB_RECURSE ZEUSDEBUG_PLOT_FORMS ${PROJECT_SOURCE_DIR}/srcPlot/*.ui)
+file(GLOB_RECURSE ZEUSDEBUG_PLOT_RESOURCES ${PROJECT_SOURCE_DIR}/resources/*.qrc)
+
+QT5_WRAP_UI(ZEUSDEBUG_PLOT_FORMS_HEADERS ${ZEUSDEBUG_PLOT_FORMS})
+QT5_ADD_RESOURCES(ZEUSDEBUG_PLOT_RESOURCESOURCES ${ZEUSDEBUG_PLOT_RESOURCES})
+
 # Add the executables
 add_executable(zeusDebug ${ZEUSDEBUG_HEADERS} ${ZEUSDEBUG_SOURCES_C} ${ZEUSDEBUG_SOURCES_CPP} ${ZEUSDEBUG_RESOURCESOURCES} ${ZEUSDEBUG_FORMS_HEADERS} "${PROJECT_BINARY_DIR}/include/version.cpp")
+add_executable(zeusDebugPlot ${ZEUSDEBUG_PLOT_HEADERS} ${ZEUSDEBUG_PLOT_SOURCES_C} ${ZEUSDEBUG_PLOT_SOURCES_CPP} ${ZEUSDEBUG_PLOT_RESOURCESOURCES} ${ZEUSDEBUG_PLOT_FORMS_HEADERS} "${PROJECT_BINARY_DIR}/include/version.cpp")
+
+target_include_directories(zeusDebug PRIVATE "${PROJECT_SOURCE_DIR}/src")
+target_include_directories(zeusDebugPlot PRIVATE "${PROJECT_SOURCE_DIR}/srcPlot")
 
 if (MSVC)
 	set_target_properties(zeusDebug PROPERTIES LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
 	set_target_properties(zeusDebug PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
+	
+	set_target_properties(zeusDebugPlot PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
 endif(MSVC)
 
 # Use the required modules from Qt 5.
@@ -163,6 +175,11 @@ target_link_libraries(zeusDebug Qt5::Gui)
 target_link_libraries(zeusDebug Qt5::Widgets)
 target_link_libraries(zeusDebug Qt5::Network)
 target_link_libraries(zeusDebug Qt5::PrintSupport)
+
+target_link_libraries(zeusDebugPlot Qt5::Core)
+target_link_libraries(zeusDebugPlot Qt5::Gui)
+target_link_libraries(zeusDebugPlot Qt5::Widgets)
+target_link_libraries(zeusDebugPlot Qt5::PrintSupport)
 
 if(HAVE_WS2_32)
 	target_link_libraries(zeusDebug ws2_32)
