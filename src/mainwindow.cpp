@@ -15,7 +15,7 @@
 #include "gpu_query.h"
 #include "version.h"
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mUseVerboseJson(false), mPingCounter(0), mCpuLoad(), mGpuLoad(), mDebugCounter(0), mBytesWritten(0) {
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mUseVerboseJson(false), mMinCpuUtil(100.0), mMinGpuUtil(100.0), mMinMemUtil(100.0), mPingCounter(0), mCpuLoad(), mGpuLoad(), mDebugCounter(0), mBytesWritten(0) {
     mUi->setupUi(this);
 
 	this->setWindowTitle(QStringLiteral("ZeusOps Debug Utility v").append(QString::fromStdString(Version::versionWithTagString())));
@@ -117,6 +117,9 @@ void MainWindow::onButtonStartStopClick() {
 		mUi->btnStartStop->setEnabled(false);
 
 		mUseVerboseJson = mUi->cboxVerboseJson->checkState() == Qt::Checked;
+		mMinCpuUtil = mUi->spinMinCpuUtil->value();
+		mMinGpuUtil = mUi->spinMinGpuUtil->value();
+		mMinMemUtil = mUi->spinMinMemUtil->value();
 
 		mTimeStartRecord = QDateTime::currentDateTime();
 		clearStats();
@@ -200,7 +203,7 @@ void MainWindow::onTimerTimeout() {
 	//std::cout << "Took " << before.msecsTo(after) << "ms." << std::endl;
 
 	// CPU
-	mCpuLoad.update(mGpuLoad.getCurrentGpuLoad(), mUseVerboseJson);
+	mCpuLoad.update(mMinCpuUtil, mMinMemUtil, mMinGpuUtil, mGpuLoad.getCurrentGpuLoad(), mUseVerboseJson);
 
 	if (mCpuLoad.isArmaRunning()) {
 		quint64 const armaPid = mCpuLoad.getArmaPid();

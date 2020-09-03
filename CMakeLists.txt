@@ -45,6 +45,7 @@ if(MSVC)
 	add_definitions(/DNOMINMAX)
 	add_definitions(/MP)
 	add_definitions(/std:c++latest)
+	add_definitions(/D_WINSOCK_DEPRECATED_NO_WARNINGS)
 	
 	add_definitions(-DUNICODE)
 	add_definitions(-D_UNICODE)

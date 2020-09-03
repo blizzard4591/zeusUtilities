@@ -22,5 +22,7 @@ void EtwProcessThread::run() {
 	auto status = ProcessTrace(&mTraceHandle, 1, NULL, NULL);
 	(void)status;
 
+#ifndef NDEBUG
 	std::cerr << "ETW Thread terminated." << std::endl;
+#endif // NDEBUG
 }

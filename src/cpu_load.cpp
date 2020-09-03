@@ -1,7 +1,7 @@
 #include "cpu_load.h"
 
+#include <Windows.h>
 #include <winternl.h>
-#include <ntstatus.h>
 
 #include <algorithm>
 #include <iostream>
@@ -10,7 +10,13 @@
 #include <string>
 #include <QString>
 
-CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mProcessHistory(), mStateString(), mProcessesStrings(), mStateObject(), mProcessesArray(), mIsArmaRunning(false), mArmaImageName(), mArmaPid() {
+#define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)    // ntsubauth
+#define STATUS_INFO_LENGTH_MISMATCH      ((NTSTATUS)0xC0000004L)
+
+CpuLoad::CpuLoad() : 
+    mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mLastUserTime(0), 
+    mLastKernelTime(0), mLastIdleTime(0), mUserTimeDelta(0), mKernelTimeDelta(0), mIdleTimeDelta(0), mProcessHistory(), mStateString(), mProcessesStrings(),
+    mStateObject(), mProcessesArray(), mIsArmaRunning(false), mArmaImageName(), mArmaPid() {
     SYSTEM_INFO info = { 0 };
     GetSystemInfo(&info);
     mProcessorCount = info.dwNumberOfProcessors;
@@ -71,7 +77,7 @@ std::size_t CpuLoad::getCoreCount() const {
     return mProcessorCount;
 }
 
-void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad, bool doVerboseJson) {
+void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, std::unordered_map<void*, GpuInfo> const& gpuLoad, bool doVerboseJson) {
     mStateString = "";
     mProcessesStrings.clear();
     mStateObject = QJsonObject();
@@ -196,21 +202,13 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad, bool doV
             double const percentLoad = 100.0 * (mProcessHistory.at(handle).KernelTime.delta + mProcessHistory.at(handle).UserTime.delta) / overallTimeDelta;
             double const percentMemory = 100.0 * mProcessHistory.at(handle).WorkingSetSize.value / totalPhysicalMemory;
 
-            bool const processUsesGpuMoreThan5Percent = gpuLoad.contains(handle) && (gpuLoad.at(handle).utilization >= 0.05);
+            bool const processUsesGpuMoreThanXPercent = gpuLoad.contains(handle) && (gpuLoad.at(handle).utilization >= minGpuUtil);
             bool const processUsesGpuMemoryMoreThan100MB = gpuLoad.contains(handle) && (gpuLoad.at(handle).dedicatedMemory >= (100uLL * 1024uLL * 1024uLL));
-
-            // For debugging
-            /*
-            uint64_t intProcessHandle = (uint64_t)handle;
-            if (intProcessHandle == 16780 || intProcessHandle == 31056) {
-                std::cout << mProcessHistory.at(handle) << " (" << percentLoad << "%)" << std::endl;
-            }
-            */
 
             bool const isArma32Bit = mProcessHistory.at(handle).ImageName.compare(QStringLiteral("arma3.exe"), Qt::CaseInsensitive) == 0;
             bool const isArma64Bit = mProcessHistory.at(handle).ImageName.compare(QStringLiteral("arma3_x64.exe"), Qt::CaseInsensitive) == 0;
 
-            if (mProcessHistory.at(handle).ImageName.contains(QStringLiteral("arma3")) || (percentLoad >= 10.0) || (percentMemory >= 10.0) || processUsesGpuMoreThan5Percent || processUsesGpuMemoryMoreThan100MB) {
+            if (mProcessHistory.at(handle).ImageName.contains(QStringLiteral("arma3")) || (percentLoad >= minCpuUtil) || (percentMemory >= minMemUtil) || processUsesGpuMoreThanXPercent || processUsesGpuMemoryMoreThan100MB) {
                 if ((mProcessHistory.at(handle).ImageName.compare(QStringLiteral("Memory Compression")) != 0) && (mProcessHistory.at(handle).ImageName.compare(QStringLiteral("dwm.exe")) != 0)) {
                     mProcessesStrings.append(mProcessHistory.at(handle).toQString());
                     mProcessesArray.append(mProcessHistory.at(handle).toJsonObject(doVerboseJson));

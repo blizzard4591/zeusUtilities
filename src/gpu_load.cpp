@@ -1,7 +1,5 @@
 #include "gpu_load.h"
 
-#include <ntstatus.h>
-
 #include <algorithm>
 #include <iostream>
 

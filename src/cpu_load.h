@@ -18,7 +18,7 @@ public:
     CpuLoad();
     virtual ~CpuLoad();
 
-    void update(std::unordered_map<void*, GpuInfo> const& gpuLoad, bool doVerboseJson);
+    void update(double minCpuUtil, double minMemUtil, double minGpuUtil, std::unordered_map<void*, GpuInfo> const& gpuLoad, bool doVerboseJson);
     void reset();
 
     double getCpuLoadOfCore(std::size_t core) const;

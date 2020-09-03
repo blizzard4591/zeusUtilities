@@ -513,7 +513,9 @@ void EtwOutputThread::run() {
         // Everything is processed and output out at this point, so if we're
         // quiting we don't need to update the rest.
         if (quit) {
+#ifndef NDEBUG
             std::cerr << "Quitting output loop." << std::endl;
+#endif // NDEBUG
             break;
         }
 

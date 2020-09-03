@@ -34,8 +34,6 @@ SOFTWARE.
 #include <d3d9.h>
 #include <dxgi.h>
 
-#include <iostream>
-
 // These macros, when enabled, record what PresentMon analysis below was done
 // for each present.  The primary use case is to compute usage statistics and
 // ensure test coverage.
@@ -176,10 +174,6 @@ void PMTraceConsumer::HandleDXGIEvent(EVENT_RECORD* pEventRecord) {
     auto const& hdr = pEventRecord->EventHeader;
     switch (hdr.EventDescriptor.Id) {
     case Microsoft_Windows_DXGI::Present_Start::Id:
-        std::cout << "PRESENT_START PID = " << hdr.ProcessId << std::endl;
-        if (hdr.ProcessId == mInterestingProcessId) {
-            
-        }
     case Microsoft_Windows_DXGI::PresentMultiplaneOverlay_Start::Id:
     {
         EventDataDesc desc[] = {

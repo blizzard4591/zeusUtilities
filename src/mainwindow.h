@@ -41,6 +41,11 @@ private:
 
     bool mIsStarted;
     bool mUseVerboseJson;
+
+    double mMinCpuUtil;
+    double mMinGpuUtil;
+    double mMinMemUtil;
+
     quint64 mPingCounter;
 
     QVector<QThread*> mPingThreads;
