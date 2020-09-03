@@ -20,7 +20,6 @@ public:
 	double latency;
 	PresentMode presentMode;
 
-	QString toQString() const;
 	QJsonObject toJsonObject(bool verbose) const;
 	friend std::ostream& operator<<(std::ostream& os, const FpsInfo& fi);
 

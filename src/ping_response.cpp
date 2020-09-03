@@ -3,13 +3,6 @@
 QJsonObject PingResponse::toJsonObject(bool verbose) {
 	QJsonObject result;
 
-	/*
-	bool hasError;
-    uint32_t errorCode;
-    uint32_t roundTripTime;
-    uint8_t ttl;
-    QString target;
-	*/
 	if (verbose) {
 		result.insert(QStringLiteral("hasError"), hasError);
 		result.insert(QStringLiteral("errorCode"), static_cast<qint64>(errorCode));

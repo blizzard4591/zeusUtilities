@@ -15,7 +15,7 @@
 
 CpuLoad::CpuLoad() : 
     mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mLastUserTime(0), 
-    mLastKernelTime(0), mLastIdleTime(0), mUserTimeDelta(0), mKernelTimeDelta(0), mIdleTimeDelta(0), mProcessHistory(), mStateString(), mProcessesStrings(),
+    mLastKernelTime(0), mLastIdleTime(0), mUserTimeDelta(0), mKernelTimeDelta(0), mIdleTimeDelta(0), mProcessHistory(),
     mStateObject(), mProcessesArray(), mIsArmaRunning(false), mArmaImageName(), mArmaPid() {
     SYSTEM_INFO info = { 0 };
     GetSystemInfo(&info);
@@ -78,8 +78,6 @@ std::size_t CpuLoad::getCoreCount() const {
 }
 
 void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, std::unordered_map<void*, GpuInfo> const& gpuLoad, bool doVerboseJson) {
-    mStateString = "";
-    mProcessesStrings.clear();
     mStateObject = QJsonObject();
     mProcessesArray = QJsonArray();
     mIsArmaRunning = false;
@@ -118,7 +116,6 @@ void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, st
     }
 
     // userDelta, kernelDelta, idleDelta
-    mStateString += QStringLiteral("%1;%2;%3").arg(mUserTimeDelta).arg(mKernelTimeDelta).arg(mIdleTimeDelta);
     if (doVerboseJson) {
         mStateObject.insert(QStringLiteral("userDelta"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
         mStateObject.insert(QStringLiteral("kernelDelta"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
@@ -138,7 +135,6 @@ void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, st
     uint64_t const totalPhysicalMemory = statex.ullTotalPhys;
 
     // memory load, total mem, free mem, total page, free page, total virt, free virt
-    mStateString += QStringLiteral(";%1;%2;%3;%4;%5;%6;%7").arg(statex.dwMemoryLoad).arg(statex.ullTotalPhys).arg(statex.ullAvailPhys).arg(statex.ullTotalPageFile).arg(statex.ullAvailPageFile).arg(statex.ullTotalVirtual).arg(statex.ullAvailVirtual);
     if (doVerboseJson) {
         mStateObject.insert(QStringLiteral("memoryLoad"), QJsonValue(static_cast<qint64>(statex.dwMemoryLoad)));
         mStateObject.insert(QStringLiteral("memoryTotal"), QJsonValue(static_cast<qint64>(statex.ullTotalPhys)));
@@ -210,7 +206,6 @@ void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, st
 
             if (mProcessHistory.at(handle).ImageName.contains(QStringLiteral("arma3")) || (percentLoad >= minCpuUtil) || (percentMemory >= minMemUtil) || processUsesGpuMoreThanXPercent || processUsesGpuMemoryMoreThan100MB) {
                 if ((mProcessHistory.at(handle).ImageName.compare(QStringLiteral("Memory Compression")) != 0) && (mProcessHistory.at(handle).ImageName.compare(QStringLiteral("dwm.exe")) != 0)) {
-                    mProcessesStrings.append(mProcessHistory.at(handle).toQString());
                     mProcessesArray.append(mProcessHistory.at(handle).toJsonObject(doVerboseJson));
                 }
             }

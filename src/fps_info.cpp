@@ -12,10 +12,6 @@ void FpsInfo::reset() {
 	presentMode = PresentMode::Unknown;
 }
 
-QString FpsInfo::toQString() const {
-	return QStringLiteral("%1;%2;%3;%4").arg(msPerFrame, 0, 'f', 2).arg(framesPerSecond, 0, 'f', 2).arg(fpsDisplayed, 0, 'f', 2).arg(latency, 0, 'f', 2);
-}
-
 QJsonObject FpsInfo::toJsonObject(bool verbose) const {
     QJsonObject result;
     if (verbose) {

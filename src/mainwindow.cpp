@@ -141,22 +141,6 @@ void MainWindow::onButtonStartStopClick() {
 		QStringList const targets = mUi->edtTargets->text().split(QChar(','), Qt::SkipEmptyParts);
 		uint32_t const interval = static_cast<uint32_t>(mUi->spinInterval->value());
 
-		// Headers
-		mOutputFile.write(QStringLiteral("# Type 1: State information\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#    Fields:\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#     - Time in msecs since epoch\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#     - userDelta, kernelDelta, idleDelta (100 nanosecond resolution)\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#     - memory load, total mem, free mem, total page, free page, total virt, free virt (in bytes)\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#     - RTT and TTL for pings to all targets (%1)\r\n").arg(targets.join(';')).toUtf8());
-		mOutputFile.write(QStringLiteral("# Type 2: Processes information\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#    Fields:\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#     - PID, ImageName\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#     - UserTime, KernelTime\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#     - WorkingSetSize, PeakWorkingSetSize (both as value and delta to last)\r\n").toUtf8());
-		mOutputFile.write(QStringLiteral("#     - GPU utilization, GPU dedicated memory used\r\n").toUtf8());
-
-		//mMissedFrameCountAtStart = mCbObject.getCurrentMissedFrameCount();
-
 		addLogItem(QStringLiteral("Starting measurement with %1 ping targets at %2ms intervals.").arg(targets.size()).arg(interval));
 
 		for (int i = 0; i < targets.size(); ++i) {
@@ -219,17 +203,17 @@ void MainWindow::onTimerTimeout() {
 	QJsonArray const processesStates = mCpuLoad.getProcessesAsJsonArray();
 	QJsonObject const armaFps = mEtwQuery.getFpsInfo().toJsonObject(mUseVerboseJson);
 
-	QString loadStringDbg = "Load: ";
-	QString loadString = "";
-	for (std::size_t i = 0; i < coreCount; ++i) {
-		if (i > 0) {
-			loadStringDbg += ", ";
-			loadString += ";";
-		}
-		loadStringDbg += QString("Core %1: %2").arg(i).arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'f', 2);
-		loadString += QString("%1").arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'f', 2);
-	}
 	if (showLog) {
+		QString loadStringDbg = "Load: ";
+		QString loadString = "";
+		for (std::size_t i = 0; i < coreCount; ++i) {
+			if (i > 0) {
+				loadStringDbg += ", ";
+				loadString += ";";
+			}
+			loadStringDbg += QString("Core %1: %2").arg(i).arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'f', 2);
+			loadString += QString("%1").arg(mCpuLoad.getCpuLoadOfCore(i), 2, 'f', 2);
+		}
 		addLogItem(loadStringDbg);
 	}
 

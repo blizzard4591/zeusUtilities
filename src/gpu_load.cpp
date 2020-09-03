@@ -15,7 +15,7 @@ GpuLoad::GpuLoad() {
 }
 
 GpuLoad::~GpuLoad() {
-    //
+    stop();
 }
 
 void GpuLoad::update() {
@@ -27,9 +27,11 @@ void GpuLoad::start() {
 }
 
 void GpuLoad::stop() {
-    mGpuQueryThread.requestInterruption();
-    mGpuQueryThread.quit();
-    mGpuQueryThread.wait();
+    if (mGpuQueryThread.isRunning()) {
+        mGpuQueryThread.requestInterruption();
+        mGpuQueryThread.quit();
+        mGpuQueryThread.wait();
+    }
 }
 
 std::unordered_map<void*, GpuInfo> GpuLoad::getCurrentGpuLoad() const {

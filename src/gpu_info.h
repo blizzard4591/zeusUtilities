@@ -15,7 +15,6 @@ public:
     uint64_t sharedMemory;
     uint64_t commitMemory;
     
-    QString toQString();
     friend std::ostream& operator<<(std::ostream& os, const GpuInfo& gi);
 };
 

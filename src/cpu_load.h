@@ -24,8 +24,6 @@ public:
     double getCpuLoadOfCore(std::size_t core) const;
     std::size_t getCoreCount() const;
 
-    QString const& getStateString() const { return mStateString; }
-    QStringList const& getProcessesStrings() const { return mProcessesStrings; }
     QJsonObject const& getStateAsJsonObject() const { return mStateObject; }
     QJsonArray const& getProcessesAsJsonArray() const { return mProcessesArray; }
 
@@ -52,8 +50,6 @@ private:
     void* mProcessInformation;
     std::size_t mProcessInformationSize;
 
-    QString mStateString;
-    QStringList mProcessesStrings;
     QJsonObject mStateObject;
     QJsonArray mProcessesArray;
     
