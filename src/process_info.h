@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 
+#include <QJsonObject>
 #include <QString>
 
 #include "gpu_info.h"
@@ -26,7 +27,7 @@ public:
     LARGE_INTEGER value;
     int64_t delta;
 
-    QString toQString();
+    QString toQString() const;
     friend std::ostream& operator<<(std::ostream& os, const DeltaValueLI& d);
 };
 
@@ -45,7 +46,7 @@ public:
     std::size_t value;
     int64_t delta;
 
-    QString toQString();
+    QString toQString() const;
     friend std::ostream& operator<<(std::ostream& os, const DeltaValueST& d);
 };
 
@@ -114,6 +115,7 @@ public:
     GpuInfo GpuData;
 
     QString toQString();
+    QJsonObject toJsonObject(bool beVerbose) const;
     friend std::ostream& operator<<(std::ostream& os, const ProcessInfo& pi);
 };
 

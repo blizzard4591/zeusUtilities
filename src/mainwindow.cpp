@@ -3,6 +3,9 @@
 
 #include <QDateTime>
 #include <QDir>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QProcessEnvironment>
@@ -12,7 +15,7 @@
 #include "gpu_query.h"
 #include "version.h"
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mPingCounter(0), mCpuLoad(), mGpuLoad(), mDebugCounter(0) {
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindow), mIsStarted(false), mUseVerboseJson(false), mPingCounter(0), mCpuLoad(), mGpuLoad(), mDebugCounter(0), mBytesWritten(0) {
     mUi->setupUi(this);
 
 	this->setWindowTitle(QStringLiteral("ZeusOps Debug Utility v").append(QString::fromStdString(Version::versionWithTagString())));
@@ -26,8 +29,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainW
 
 	QObject::connect(mUi->btnStartStop, SIGNAL(clicked()), this, SLOT(onButtonStartStopClick()));
 	QObject::connect(&mTimer, SIGNAL(timeout()), this, SLOT(onTimerTimeout()));
-
-	//CbObject::setMainWindow(this, &mCbObject);
 
 	QStringList locations = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
 	if (locations.size() > 0) {
@@ -54,6 +55,9 @@ MainWindow::~MainWindow() {
 	mPingThreads.clear();
 	mPings.clear();
 
+	mGpuLoad.stop();
+	mEtwQuery.stopTraceSession();
+
     delete mUi;
 }
 
@@ -78,18 +82,13 @@ QString MainWindow::formatSize(quint64 number) const {
 }
 
 void MainWindow::onButtonStartStopClick() {
-	if (!mEtwQuery.startTraceSession(2836)) {
-		QMessageBox::warning(this, "Failed to start ETW Session", "Could not start ETW trace session, FPS data on game(s) will not be available.");
-	}
-	return;
-
-
 	if (mIsStarted) {
 		mTimer.stop();
 		mUi->btnStartStop->setText(QStringLiteral("Stopping..."));
 		mUi->btnStartStop->setEnabled(false);
 
 		mGpuLoad.stop();
+		mEtwQuery.stopTraceSession();
 
 		for (int i = 0; i < mPingThreads.size(); ++i) {
 			QThread* pingThread = mPingThreads.at(i);
@@ -116,6 +115,8 @@ void MainWindow::onButtonStartStopClick() {
 		mUi->logWidget->clear();
 		mUi->btnStartStop->setText(QStringLiteral("Starting..."));
 		mUi->btnStartStop->setEnabled(false);
+
+		mUseVerboseJson = mUi->cboxVerboseJson->checkState() == Qt::Checked;
 
 		mTimeStartRecord = QDateTime::currentDateTime();
 		clearStats();
@@ -159,10 +160,10 @@ void MainWindow::onButtonStartStopClick() {
 			QThread* pingThread = new QThread(this);
 			mPingThreads.append(pingThread);
 
-			Ping* ping = new Ping(targets.at(i), 2000, nullptr);
+			Ping* ping = new Ping(targets.at(i), i, 2000, nullptr);
 			ping->moveToThread(pingThread);
 
-			if (!QObject::connect(ping, SIGNAL(pingDone(quint64, quint64, Ping::PingResponse)), this, SLOT(onPingDone(quint64, quint64, Ping::PingResponse)), Qt::ConnectionType::QueuedConnection)) {
+			if (!QObject::connect(ping, SIGNAL(pingDone(quint64, quint64, PingResponse)), this, SLOT(onPingDone(quint64, quint64, PingResponse)), Qt::ConnectionType::QueuedConnection)) {
 				std::cerr << "Failed to connect pingDone to main!" << std::endl;
 			}
 
@@ -172,6 +173,9 @@ void MainWindow::onButtonStartStopClick() {
 		}
 
 		mGpuLoad.start();
+		if (!mEtwQuery.startTraceSession(0)) {
+			QMessageBox::warning(this, "Failed to start ETW Session", "Could not start ETW trace session, FPS data on game(s) will not be available.");
+		}
 
 		mTimer.setSingleShot(false);
 		mTimer.setInterval(interval);
@@ -196,17 +200,20 @@ void MainWindow::onTimerTimeout() {
 	//std::cout << "Took " << before.msecsTo(after) << "ms." << std::endl;
 
 	// CPU
-	mCpuLoad.update(mGpuLoad.getCurrentGpuLoad());
+	mCpuLoad.update(mGpuLoad.getCurrentGpuLoad(), mUseVerboseJson);
 
 	if (mCpuLoad.isArmaRunning()) {
-		mUi->lblArmaState->setText(QStringLiteral("yes (PID = %1, %2)").arg(mCpuLoad.getArmaPid()).arg(mCpuLoad.getArmaImageName()));
+		quint64 const armaPid = mCpuLoad.getArmaPid();
+		mUi->lblArmaState->setText(QStringLiteral("yes (PID = %1, %2)").arg(armaPid).arg(mCpuLoad.getArmaImageName()));
+		mEtwQuery.setTargetPid(armaPid);
 	} else {
 		mUi->lblArmaState->setText(QStringLiteral("no"));
+		mEtwQuery.setTargetPid(0);
 	}
 
 	std::size_t const coreCount = mCpuLoad.getCoreCount();
-	QString const cpuState = mCpuLoad.getStateString();
-	QStringList const processesStates = mCpuLoad.getProcessesStrings();
+	QJsonObject const cpuState = mCpuLoad.getStateAsJsonObject();
+	QJsonArray const processesStates = mCpuLoad.getProcessesAsJsonArray();
 
 	QString loadStringDbg = "Load: ";
 	QString loadString = "";
@@ -226,13 +233,17 @@ void MainWindow::onTimerTimeout() {
 	roundInfo.startTime = QString::number(now.toMSecsSinceEpoch());
 	roundInfo.remainingPings = mPings.size();
 	roundInfo.pingResponses.resize(mPings.size());
-	roundInfo.stateData = QStringLiteral("1;").append(roundInfo.startTime).append(";").append(cpuState);
-
-	for (int i = 0; i < processesStates.size(); ++i) {
-		mBytesWritten += mOutputFile.write(QStringLiteral("2;%1;%2\r\n").arg(roundInfo.startTime).arg(processesStates.at(i)).toUtf8());
+	//roundInfo.stateData = QStringLiteral("1;").append(roundInfo.startTime).append(";").append(cpuState);
+	if (mUseVerboseJson) {
+		roundInfo.outputObject.insert(QStringLiteral("startTime"), roundInfo.startTime);
+		roundInfo.outputObject.insert(QStringLiteral("cpuState"), cpuState);
+		roundInfo.outputObject.insert(QStringLiteral("processes"), processesStates);
+	} else {
+		roundInfo.outputObject.insert(QStringLiteral("0:0"), roundInfo.startTime);
+		roundInfo.outputObject.insert(QStringLiteral("0:1"), cpuState);
+		roundInfo.outputObject.insert(QStringLiteral("0:2"), processesStates);
 	}
-	updateStats();
-
+	
 	mRemainingPings.insert(mPingCounter, roundInfo);
 
 	// Pings
@@ -240,7 +251,7 @@ void MainWindow::onTimerTimeout() {
 		addLogItem(QString("Pinging (round #%1)...").arg(mPingCounter));
 	}
 	for (int i = 0; i < mPings.size(); ++i) {
-		if (!QMetaObject::invokeMethod(mPings.at(i), "doPing", Qt::ConnectionType::QueuedConnection, Q_ARG(quint64, mPingCounter), Q_ARG(quint64, i))) {
+		if (!QMetaObject::invokeMethod(mPings.at(i), "doPing", Qt::ConnectionType::QueuedConnection, Q_ARG(quint64, mPingCounter))) {
 			std::cerr << "Failed to invoke ping method!" << std::endl;
 		}
 	}
@@ -248,7 +259,7 @@ void MainWindow::onTimerTimeout() {
 	++mPingCounter;
 }
 
-void MainWindow::onPingDone(quint64 roundId, quint64 pingId, Ping::PingResponse pingResponse) {
+void MainWindow::onPingDone(quint64 roundId, quint64 pingId, PingResponse pingResponse) {
 	bool const showLog = mUi->cboxShowLog->checkState() == Qt::Checked;
 	if (showLog) {
 		if (pingResponse.hasError) {
@@ -265,6 +276,7 @@ void MainWindow::onPingDone(quint64 roundId, quint64 pingId, Ping::PingResponse 
 	RoundInfo& roundInfo = mRemainingPings.find(roundId).value();
 	roundInfo.remainingPings--;
 	roundInfo.pingResponses[pingId] = pingResponse.hasError ? QStringLiteral(";-1;").append(pingResponse.errorCode) : QStringLiteral(";%1;%2").arg(QString::number(pingResponse.roundTripTime)).arg(QString::number(pingResponse.ttl));
+	roundInfo.jsonPingResponses.append(pingResponse.toJsonObject(mUseVerboseJson));
 
 	if (roundInfo.remainingPings == 0) {
 		if (showLog) {
@@ -272,12 +284,14 @@ void MainWindow::onPingDone(quint64 roundId, quint64 pingId, Ping::PingResponse 
 		}
 
 		if (mOutputFile.isOpen()) {
-			// Type state
-			QString stateOut = roundInfo.stateData;
-			for (int i = 0; i < roundInfo.pingResponses.size(); ++i) {
-				stateOut += roundInfo.pingResponses.at(i);
+			if (mUseVerboseJson) {
+				roundInfo.outputObject.insert(QStringLiteral("pings"), roundInfo.jsonPingResponses);
+			} else {
+				roundInfo.outputObject.insert(QStringLiteral("0:3"), roundInfo.jsonPingResponses);
 			}
-			mBytesWritten += mOutputFile.write(stateOut.toUtf8());
+			QJsonDocument roundDocument(roundInfo.outputObject);
+			mBytesWritten += mOutputFile.write(roundDocument.toJson(QJsonDocument::Compact));
+			mBytesWritten += mOutputFile.write("\r\n");
 
 			updateStats();
 		}

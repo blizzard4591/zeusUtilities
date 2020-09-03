@@ -4,6 +4,9 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMainWindow>
 #include <QThread>
 #include <QTimer>
@@ -32,21 +35,22 @@ public slots:
     void menuFileOpenLogDirectoryOnClick();
     void menuFileQuitOnClick();
 
-    void onPingDone(quint64 roundId, quint64 pingId, Ping::PingResponse pingResponse);
+    void onPingDone(quint64 roundId, quint64 pingId, PingResponse pingResponse);
 private:
     Ui::MainWindow* mUi;
 
     bool mIsStarted;
+    bool mUseVerboseJson;
     quint64 mPingCounter;
-    quint64 mMissedFrameCountAtStart;
 
     QVector<QThread*> mPingThreads;
     QVector<Ping*> mPings;
 
     struct RoundInfo {
         quint64 remainingPings;
-        QString stateData;
+        QJsonObject outputObject;
         QString startTime;
+        QJsonArray jsonPingResponses;
         QVector<QString> pingResponses;
     };
 

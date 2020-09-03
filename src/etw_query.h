@@ -4,9 +4,8 @@
 #include <QObject>
 #include <string>
 
-#include "etw_trace_consumer.h"
-#include "etw_trace_session.h"
 #include "etw_process_thread.h"
+#include "etw_output_thread.h"
 
 class EtwQuery : public QObject {
 	Q_OBJECT
@@ -14,14 +13,21 @@ public:
 	EtwQuery();
 	virtual ~EtwQuery();
 
-	bool startTraceSession(uint64_t interestingPid);
+	bool startTraceSession(quint64 interestingPid);
+	bool stopTraceSession();
+
+	void setTargetPid(quint64 pid);
+public slots:
+	void updatedFps(quint64 pid, FpsInfo const& fpsInfo);
 private:
-	TraceSession mTraceSession;
-	PMTraceConsumer mTraceConsumer;
 	EtwProcessThread mEtwProcessThread;
+	EtwOutputThread mEtwOutputThread;
 
 	std::string const mSessionName;
 	bool mIsSessionStarted;
+
+	quint64 mTargetPid;
+	FpsInfo mFpsInfo;
 };
 
 #endif

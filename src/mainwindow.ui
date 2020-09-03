@@ -99,15 +99,32 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
+      <item row="6" column="0">
        <widget class="QLabel" name="lblOutputDir">
         <property name="text">
          <string>Log Output Directory:</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="6" column="1">
        <widget class="QLineEdit" name="edtOutputDir"/>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="lblVerboseJson">
+        <property name="text">
+         <string>User verbose JSON:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QCheckBox" name="cboxVerboseJson">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>

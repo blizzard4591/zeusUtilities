@@ -10,7 +10,7 @@
 #include <QRegularExpression>
 #include <QThread>
 
-Ping::Ping(QString const& target, int timeout, QObject* parent) : QObject(parent), mTarget(target), mTargetIp(resolveHostname(target)), mTimeout(timeout), mSendBuffer(), mReplyBuffer(sizeof(ICMP_ECHO_REPLY) + 32 + 1, '\0'), mCounter(0) {
+Ping::Ping(QString const& target, quint64 pingId, int timeout, QObject* parent) : QObject(parent), mPingId(pingId), mTarget(target), mTargetIp(resolveHostname(target)), mTimeout(timeout), mSendBuffer(), mReplyBuffer(sizeof(ICMP_ECHO_REPLY) + 32 + 1, '\0'), mCounter(0) {
     //
 }
 
@@ -102,9 +102,9 @@ bool Ping::ping(PingResponse& pingResponse) {
     return true;
 }
 
-void Ping::doPing(quint64 roundId, quint64 pingId) {
-    Ping::PingResponse result;
+void Ping::doPing(quint64 roundId) {
+    PingResponse result;
     ping(result);
 
-    emit pingDone(roundId, pingId, result);
+    emit pingDone(roundId, mPingId, result);
 }

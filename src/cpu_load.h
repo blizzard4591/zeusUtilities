@@ -5,6 +5,8 @@
 #include <vector>
 #include <unordered_map>
 
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QString>
 #include <QStringList>
 
@@ -16,7 +18,7 @@ public:
     CpuLoad();
     virtual ~CpuLoad();
 
-    void update(std::unordered_map<void*, GpuInfo> const& gpuLoad);
+    void update(std::unordered_map<void*, GpuInfo> const& gpuLoad, bool doVerboseJson);
     void reset();
 
     double getCpuLoadOfCore(std::size_t core) const;
@@ -24,6 +26,8 @@ public:
 
     QString const& getStateString() const { return mStateString; }
     QStringList const& getProcessesStrings() const { return mProcessesStrings; }
+    QJsonObject const& getStateAsJsonObject() const { return mStateObject; }
+    QJsonArray const& getProcessesAsJsonArray() const { return mProcessesArray; }
 
     bool isArmaRunning() const { return mIsArmaRunning; }
     QString const& getArmaImageName() const { return mArmaImageName; }
@@ -50,6 +54,8 @@ private:
 
     QString mStateString;
     QStringList mProcessesStrings;
+    QJsonObject mStateObject;
+    QJsonArray mProcessesArray;
     
     bool mIsArmaRunning;
     QString mArmaImageName;

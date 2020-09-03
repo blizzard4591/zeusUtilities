@@ -10,7 +10,7 @@
 #include <string>
 #include <QString>
 
-CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mProcessHistory(), mStateString(), mProcessesStrings(), mIsArmaRunning(false) {
+CpuLoad::CpuLoad() : mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mProcessHistory(), mStateString(), mProcessesStrings(), mStateObject(), mProcessesArray(), mIsArmaRunning(false), mArmaImageName(), mArmaPid() {
     SYSTEM_INFO info = { 0 };
     GetSystemInfo(&info);
     mProcessorCount = info.dwNumberOfProcessors;
@@ -71,9 +71,11 @@ std::size_t CpuLoad::getCoreCount() const {
     return mProcessorCount;
 }
 
-void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
+void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad, bool doVerboseJson) {
     mStateString = "";
     mProcessesStrings.clear();
+    mStateObject = QJsonObject();
+    mProcessesArray = QJsonArray();
     mIsArmaRunning = false;
 
     // Make room for new data, swapping the current to last
@@ -111,6 +113,15 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
 
     // userDelta, kernelDelta, idleDelta
     mStateString += QStringLiteral("%1;%2;%3").arg(mUserTimeDelta).arg(mKernelTimeDelta).arg(mIdleTimeDelta);
+    if (doVerboseJson) {
+        mStateObject.insert(QStringLiteral("userDelta"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
+        mStateObject.insert(QStringLiteral("kernelDelta"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
+        mStateObject.insert(QStringLiteral("idleDelta"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
+    } else {
+        mStateObject.insert(QStringLiteral("1:0"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
+        mStateObject.insert(QStringLiteral("1:1"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
+        mStateObject.insert(QStringLiteral("1:2"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
+    }
 
     // Memory information
     MEMORYSTATUSEX statex;
@@ -122,6 +133,23 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
 
     // memory load, total mem, free mem, total page, free page, total virt, free virt
     mStateString += QStringLiteral(";%1;%2;%3;%4;%5;%6;%7").arg(statex.dwMemoryLoad).arg(statex.ullTotalPhys).arg(statex.ullAvailPhys).arg(statex.ullTotalPageFile).arg(statex.ullAvailPageFile).arg(statex.ullTotalVirtual).arg(statex.ullAvailVirtual);
+    if (doVerboseJson) {
+        mStateObject.insert(QStringLiteral("memoryLoad"), QJsonValue(static_cast<qint64>(statex.dwMemoryLoad)));
+        mStateObject.insert(QStringLiteral("memoryTotal"), QJsonValue(static_cast<qint64>(statex.ullTotalPhys)));
+        mStateObject.insert(QStringLiteral("memoryAvail"), QJsonValue(static_cast<qint64>(statex.ullAvailPhys)));
+        mStateObject.insert(QStringLiteral("pageTotal"), QJsonValue(static_cast<qint64>(statex.ullTotalPageFile)));
+        mStateObject.insert(QStringLiteral("pageAvail"), QJsonValue(static_cast<qint64>(statex.ullAvailPageFile)));
+        mStateObject.insert(QStringLiteral("virtualTotal"), QJsonValue(static_cast<qint64>(statex.ullTotalVirtual)));
+        mStateObject.insert(QStringLiteral("virtualAvail"), QJsonValue(static_cast<qint64>(statex.ullAvailVirtual)));
+    } else {
+        mStateObject.insert(QStringLiteral("1:3"), QJsonValue(static_cast<qint64>(statex.dwMemoryLoad)));
+        mStateObject.insert(QStringLiteral("1:4"), QJsonValue(static_cast<qint64>(statex.ullTotalPhys)));
+        mStateObject.insert(QStringLiteral("1:5"), QJsonValue(static_cast<qint64>(statex.ullAvailPhys)));
+        mStateObject.insert(QStringLiteral("1:6"), QJsonValue(static_cast<qint64>(statex.ullTotalPageFile)));
+        mStateObject.insert(QStringLiteral("1:7"), QJsonValue(static_cast<qint64>(statex.ullAvailPageFile)));
+        mStateObject.insert(QStringLiteral("1:8"), QJsonValue(static_cast<qint64>(statex.ullTotalVirtual)));
+        mStateObject.insert(QStringLiteral("1:9"), QJsonValue(static_cast<qint64>(statex.ullAvailVirtual)));
+    }
 
     // Per-process information
     ULONG requiredSize = 0;
@@ -185,6 +213,7 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
             if (mProcessHistory.at(handle).ImageName.contains(QStringLiteral("arma3")) || (percentLoad >= 10.0) || (percentMemory >= 10.0) || processUsesGpuMoreThan5Percent || processUsesGpuMemoryMoreThan100MB) {
                 if ((mProcessHistory.at(handle).ImageName.compare(QStringLiteral("Memory Compression")) != 0) && (mProcessHistory.at(handle).ImageName.compare(QStringLiteral("dwm.exe")) != 0)) {
                     mProcessesStrings.append(mProcessHistory.at(handle).toQString());
+                    mProcessesArray.append(mProcessHistory.at(handle).toJsonObject(doVerboseJson));
                 }
             }
 
@@ -193,13 +222,6 @@ void CpuLoad::update(std::unordered_map<void*, GpuInfo> const& gpuLoad) {
                 mArmaImageName = mProcessHistory.at(handle).ImageName;
                 mArmaPid = (uint64_t)handle;
             }
-
-            if (((uint64_t)handle == 2856) && (gpuLoad.contains(handle))) {
-                std::cout << "GPU ff: " << gpuLoad.at(handle) << std::endl;
-            }
-
-            //std::string imageName = ws2s(wImageName);
-            //std::cout << "#Threads: " << pointer->NumberOfThreads << ",Image:" << imageName.toStdString() << ",VirtSize:" << pointer->VirtualSize << std::endl;
 
             currentOffset += pointer->NextEntryOffset;
             if (pointer->NextEntryOffset == 0) {

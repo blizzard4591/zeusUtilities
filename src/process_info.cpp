@@ -28,16 +28,44 @@ void ProcessInfo::updateGpuData(GpuInfo const& gpuInfo) {
     GpuData = gpuInfo;
 }
 
-QString DeltaValueLI::toQString() {
+QString DeltaValueLI::toQString() const {
     return QStringLiteral("%1;%2").arg(value.QuadPart).arg(delta);
 }
 
-QString DeltaValueST::toQString() {
+QString DeltaValueST::toQString() const {
     return QStringLiteral("%1;%2").arg(value).arg(delta);
 }
 
 QString ProcessInfo::toQString() {
     return QStringLiteral("%1;%2;%3;%4;%5;%6;%7;%8").arg((uint64_t)UniqueProcessId).arg(ImageName).arg(UserTime.toQString()).arg(KernelTime.toQString()).arg(WorkingSetSize.toQString()).arg(PeakWorkingSetSize.toQString()).arg(GpuData.utilization, 0, 'f', 3).arg(GpuData.dedicatedMemory);
+}
+
+QJsonObject ProcessInfo::toJsonObject(bool beVerbose) const {
+    QJsonObject result;
+    if (beVerbose) {
+        result.insert(QStringLiteral("pid"), QJsonValue((qint64)UniqueProcessId));
+        result.insert(QStringLiteral("imageName"), QJsonValue(ImageName));
+        result.insert(QStringLiteral("userTime"), QJsonValue(UserTime.toQString()));
+        result.insert(QStringLiteral("kernelTime"), QJsonValue(KernelTime.toQString()));
+
+        result.insert(QStringLiteral("workingSetSize"), QJsonValue(WorkingSetSize.toQString()));
+        result.insert(QStringLiteral("peakWorkingSetSize"), QJsonValue(PeakWorkingSetSize.toQString()));
+
+        result.insert(QStringLiteral("gpuUtil"), QJsonValue(GpuData.utilization));
+        result.insert(QStringLiteral("gpuDedicatedMemory"), QJsonValue(static_cast<qint64>(GpuData.dedicatedMemory)));
+    } else {
+        result.insert(QStringLiteral("2:0"), QJsonValue((qint64)UniqueProcessId));
+        result.insert(QStringLiteral("2:1"), QJsonValue(ImageName));
+        result.insert(QStringLiteral("2:2"), QJsonValue(UserTime.toQString()));
+        result.insert(QStringLiteral("2:3"), QJsonValue(KernelTime.toQString()));
+
+        result.insert(QStringLiteral("2:4"), QJsonValue(WorkingSetSize.toQString()));
+        result.insert(QStringLiteral("2:5"), QJsonValue(PeakWorkingSetSize.toQString()));
+
+        result.insert(QStringLiteral("2:6"), QJsonValue(GpuData.utilization));
+        result.insert(QStringLiteral("2:7"), QJsonValue(static_cast<qint64>(GpuData.dedicatedMemory)));
+    }
+    return result;
 }
 
 std::ostream& operator<<(std::ostream& os, const DeltaValueLI& d) {

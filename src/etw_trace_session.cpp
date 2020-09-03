@@ -27,6 +27,8 @@ SOFTWARE.
 #include <windows.h>
 #include <evntcons.h> // must include after windows.h
 
+#include <iostream>
+
 #include "etw_trace_session.h"
 
 #include "etw_trace_consumer.h"
@@ -97,9 +99,9 @@ ULONG EnableProviders(
         (uint64_t) Microsoft_Windows_DXGI::Keyword::Events;
     auto status = EnableFilteredProvider(sessionHandle, sessionGuid, Microsoft_Windows_DXGI::GUID, TRACE_LEVEL_INFORMATION, keywordMask, keywordMask, {
         Microsoft_Windows_DXGI::Present_Start::Id,
-        //Microsoft_Windows_DXGI::Present_Stop::Id,
-        //Microsoft_Windows_DXGI::PresentMultiplaneOverlay_Start::Id,
-        //Microsoft_Windows_DXGI::PresentMultiplaneOverlay_Stop::Id,
+        Microsoft_Windows_DXGI::Present_Stop::Id,
+        Microsoft_Windows_DXGI::PresentMultiplaneOverlay_Start::Id,
+        Microsoft_Windows_DXGI::PresentMultiplaneOverlay_Stop::Id,
     });
     if (status != ERROR_SUCCESS) return status;
 
@@ -109,7 +111,7 @@ ULONG EnableProviders(
         (uint64_t) Microsoft_Windows_D3D9::Keyword::Events;
     status = EnableFilteredProvider(sessionHandle, sessionGuid, Microsoft_Windows_D3D9::GUID, TRACE_LEVEL_INFORMATION, keywordMask, keywordMask, {
         Microsoft_Windows_D3D9::Present_Start::Id,
-        //Microsoft_Windows_D3D9::Present_Stop::Id,
+        Microsoft_Windows_D3D9::Present_Stop::Id,
     });
     if (status != ERROR_SUCCESS) return status;
 
@@ -215,6 +217,9 @@ void CALLBACK EventRecordCallback(EVENT_RECORD* pEventRecord)
     else if (!SIMPLE && hdr.ProviderId == Microsoft_Windows_DxgKrnl::Win7::VSYNCDPC_GUID)       session->mPMConsumer->HandleWin7DxgkVSyncDPC       (pEventRecord);
     else if (!SIMPLE && hdr.ProviderId == Microsoft_Windows_DxgKrnl::Win7::MMIOFLIP_GUID)       session->mPMConsumer->HandleWin7DxgkMMIOFlip       (pEventRecord);
     else if (           hdr.ProviderId == Microsoft_Windows_EventMetadata::GUID)                session->mPMConsumer->HandleMetadataEvent          (pEventRecord);
+    else {
+        //std::cout << "Unknown ProviderId." << std::endl;
+    }
 
 #pragma warning(pop)
 }

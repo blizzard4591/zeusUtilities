@@ -2,11 +2,14 @@
 
 #include <QApplication>
 
-#include "ping.h"
+#include "ping_response.h"
+#include "fps_info.h"
+
 #include <cstdint>
 
 int main(int argc, char *argv[]) {
-    qRegisterMetaType<Ping::PingResponse>();
+    qRegisterMetaType<PingResponse>();
+    qRegisterMetaType<FpsInfo>();
     qRegisterMetaType<uint64_t>();
 
     QApplication a(argc, argv);
