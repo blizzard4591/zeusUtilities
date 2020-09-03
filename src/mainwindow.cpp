@@ -217,6 +217,7 @@ void MainWindow::onTimerTimeout() {
 	std::size_t const coreCount = mCpuLoad.getCoreCount();
 	QJsonObject const cpuState = mCpuLoad.getStateAsJsonObject();
 	QJsonArray const processesStates = mCpuLoad.getProcessesAsJsonArray();
+	QJsonObject const armaFps = mEtwQuery.getFpsInfo().toJsonObject(mUseVerboseJson);
 
 	QString loadStringDbg = "Load: ";
 	QString loadString = "";
@@ -241,10 +242,12 @@ void MainWindow::onTimerTimeout() {
 		roundInfo.outputObject.insert(QStringLiteral("startTime"), roundInfo.startTime);
 		roundInfo.outputObject.insert(QStringLiteral("cpuState"), cpuState);
 		roundInfo.outputObject.insert(QStringLiteral("processes"), processesStates);
+		roundInfo.outputObject.insert(QStringLiteral("armaFps"), armaFps);
 	} else {
 		roundInfo.outputObject.insert(QStringLiteral("0:0"), roundInfo.startTime);
 		roundInfo.outputObject.insert(QStringLiteral("0:1"), cpuState);
 		roundInfo.outputObject.insert(QStringLiteral("0:2"), processesStates);
+		roundInfo.outputObject.insert(QStringLiteral("0:3"), armaFps);
 	}
 	
 	mRemainingPings.insert(mPingCounter, roundInfo);
@@ -290,7 +293,7 @@ void MainWindow::onPingDone(quint64 roundId, quint64 pingId, PingResponse pingRe
 			if (mUseVerboseJson) {
 				roundInfo.outputObject.insert(QStringLiteral("pings"), roundInfo.jsonPingResponses);
 			} else {
-				roundInfo.outputObject.insert(QStringLiteral("0:3"), roundInfo.jsonPingResponses);
+				roundInfo.outputObject.insert(QStringLiteral("0:4"), roundInfo.jsonPingResponses);
 			}
 			QJsonDocument roundDocument(roundInfo.outputObject);
 			mBytesWritten += mOutputFile.write(roundDocument.toJson(QJsonDocument::Compact));

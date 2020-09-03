@@ -17,6 +17,7 @@ public:
 	bool stopTraceSession();
 
 	void setTargetPid(quint64 pid);
+	FpsInfo const& getFpsInfo() const { return mFpsInfo; }
 public slots:
 	void updatedFps(quint64 pid, FpsInfo const& fpsInfo);
 private:

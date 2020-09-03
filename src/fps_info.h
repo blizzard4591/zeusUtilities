@@ -4,6 +4,7 @@
 #include "etw_trace_consumer.h"
 
 #include <QMetaType>
+#include <QJsonObject>
 #include <QString>
 
 #include <iostream>
@@ -19,7 +20,8 @@ public:
 	double latency;
 	PresentMode presentMode;
 
-	QString toQString();
+	QString toQString() const;
+	QJsonObject toJsonObject(bool verbose) const;
 	friend std::ostream& operator<<(std::ostream& os, const FpsInfo& fi);
 
 	static QString PresentModeToString(PresentMode const& mode);

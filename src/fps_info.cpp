@@ -12,8 +12,24 @@ void FpsInfo::reset() {
 	presentMode = PresentMode::Unknown;
 }
 
-QString FpsInfo::toQString() {
+QString FpsInfo::toQString() const {
 	return QStringLiteral("%1;%2;%3;%4").arg(msPerFrame, 0, 'f', 2).arg(framesPerSecond, 0, 'f', 2).arg(fpsDisplayed, 0, 'f', 2).arg(latency, 0, 'f', 2);
+}
+
+QJsonObject FpsInfo::toJsonObject(bool verbose) const {
+    QJsonObject result;
+    if (verbose) {
+        result.insert(QStringLiteral("msPerFrame"), msPerFrame);
+        result.insert(QStringLiteral("fps"), framesPerSecond);
+        result.insert(QStringLiteral("fpsDisplayed"), fpsDisplayed);
+        result.insert(QStringLiteral("latency"), latency);
+    } else {
+        result.insert(QStringLiteral("f:0"), msPerFrame);
+        result.insert(QStringLiteral("f:1"), framesPerSecond);
+        result.insert(QStringLiteral("f:2"), fpsDisplayed);
+        result.insert(QStringLiteral("f:3"), latency);
+    }
+    return result;
 }
 
 std::ostream& operator<<(std::ostream& os, const FpsInfo& fi) {
