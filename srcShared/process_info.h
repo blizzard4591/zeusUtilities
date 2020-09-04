@@ -19,6 +19,8 @@ public:
         delta = 0;
     }
 
+    DeltaValueLI() : delta(0) { value.QuadPart = 0; }
+
     void operator =(LARGE_INTEGER const& b) {
         delta = static_cast<int64_t>(b.QuadPart) - static_cast<int64_t>(value.QuadPart);
         value.QuadPart = b.QuadPart;
@@ -27,8 +29,14 @@ public:
     LARGE_INTEGER value;
     int64_t delta;
 
+    QJsonObject toJsonObject(bool beVerbose) const;
+    static DeltaValueLI fromJsonObject(QJsonObject const& object, bool* okay);
+
     QString toQString() const;
     friend std::ostream& operator<<(std::ostream& os, const DeltaValueLI& d);
+private:
+    static const QString TAG_V;
+    static const QString TAG_D;
 };
 
 class DeltaValueST {
@@ -38,6 +46,8 @@ public:
         delta = 0;
     }
 
+    DeltaValueST() : value(0), delta(0) {}
+
     void operator =(std::size_t const& b) {
         delta = static_cast<int64_t>(b) - static_cast<int64_t>(value);
         value = b;
@@ -46,8 +56,14 @@ public:
     std::size_t value;
     int64_t delta;
 
+    QJsonObject toJsonObject(bool beVerbose) const;
+    static DeltaValueST fromJsonObject(QJsonObject const& object, bool* okay);
+
     QString toQString() const;
     friend std::ostream& operator<<(std::ostream& os, const DeltaValueST& d);
+private:
+    static const QString TAG_V;
+    static const QString TAG_D;
 };
 
 typedef struct _FULL_SYSTEM_PROCESS_INFORMATION {
@@ -115,8 +131,29 @@ public:
     GpuInfo GpuData;
 
     QString toQString();
+    
     QJsonObject toJsonObject(bool beVerbose) const;
+    static ProcessInfo fromJsonObject(QJsonObject const& object, bool* okay);
+
     friend std::ostream& operator<<(std::ostream& os, const ProcessInfo& pi);
+private:
+    ProcessInfo(QString const& imageName, HANDLE uniqueProcessId) : ImageName(imageName), UniqueProcessId(uniqueProcessId) {}
+
+    static const QString TAG_IMAGENAME_L; static const QString TAG_IMAGENAME_S;
+    static const QString TAG_PID_L; static const QString TAG_PID_S;
+    
+    static const QString TAG_USERTIME_L; static const QString TAG_USERTIME_S;
+    static const QString TAG_KERNELTIME_L; static const QString TAG_KERNELTIME_S;
+
+    static const QString TAG_PEAKVIRTSIZE_L; static const QString TAG_PEAKVIRTSIZE_S;
+    static const QString TAG_VIRTSIZE_L; static const QString TAG_VIRTSIZE_S;
+    static const QString TAG_PEAKWORKINGSIZE_L; static const QString TAG_PEAKWORKINGSIZE_S;
+    static const QString TAG_WORKINGSIZE_L; static const QString TAG_WORKINGSIZE_S;
+    static const QString TAG_PAGEFILEUSAGE_L; static const QString TAG_PAGEFILEUSAGE_S;
+    static const QString TAG_PEAKPAGEFILEUSAGE_L; static const QString TAG_PEAKPAGEFILEUSAGE_S;
+    static const QString TAG_PRIVATEPAGECOUNT_L; static const QString TAG_PRIVATEPAGECOUNT_S;
+
+    static const QString TAG_GPUDATA_L; static const QString TAG_GPUDATA_S;
 };
 
 #endif

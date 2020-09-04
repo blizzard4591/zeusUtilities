@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <iostream>
 
+#include <QJsonObject>
 #include <QString>
 
 class GpuInfo {
@@ -15,6 +16,9 @@ public:
     uint64_t sharedMemory;
     uint64_t commitMemory;
     
+    QJsonObject toJsonObject(bool verbose) const;
+    static GpuInfo fromJsonObject(QJsonObject const& object, bool* okay);
+
     friend std::ostream& operator<<(std::ostream& os, const GpuInfo& gi);
 };
 

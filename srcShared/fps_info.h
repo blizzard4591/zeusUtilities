@@ -21,9 +21,14 @@ public:
 	PresentMode presentMode;
 
 	QJsonObject toJsonObject(bool verbose) const;
+	static FpsInfo fromJsonObject(QJsonObject const& object, bool* okay);
+
 	friend std::ostream& operator<<(std::ostream& os, const FpsInfo& fi);
 
 	static QString PresentModeToString(PresentMode const& mode);
+private:
+	static int PresentModeToInt(PresentMode const& presentMode);
+	static PresentMode IntToPresentMode(int presentMode);
 };
 
 Q_DECLARE_METATYPE(FpsInfo)

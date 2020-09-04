@@ -15,7 +15,7 @@
 
 CpuLoad::CpuLoad() : 
     mIterationCount(0), mLastValues(nullptr), mCurrentValues(nullptr), mProcessorCount(0), mLastUserTime(0), 
-    mLastKernelTime(0), mLastIdleTime(0), mUserTimeDelta(0), mKernelTimeDelta(0), mIdleTimeDelta(0), mProcessHistory(),
+    mLastKernelTime(0), mLastIdleTime(0), mProcessHistory(),
     mStateObject(), mProcessesArray(), mIsArmaRunning(false), mArmaImageName(), mArmaPid() {
     SYSTEM_INFO info = { 0 };
     GetSystemInfo(&info);
@@ -30,10 +30,6 @@ CpuLoad::CpuLoad() :
 
     mProcessInformationSize = 1 * sizeof(SYSTEM_PROCESS_INFORMATION) + 10 * sizeof(SYSTEM_THREAD_INFORMATION);
     mProcessInformation = malloc(mProcessInformationSize);
-
-    mUserTimeDelta = 0;
-    mLastKernelTime = 0;
-    mLastIdleTime = 0;
 }
 
 CpuLoad::~CpuLoad() {
@@ -63,10 +59,6 @@ void CpuLoad::reset() {
     for (DWORD i = 0; i < mProcessorCount; ++i) {
         mCpuLoadPerCore.push_back(0.0);
     }
-
-    mUserTimeDelta = 0;
-    mLastKernelTime = 0;
-    mLastIdleTime = 0;
 }
 
 double CpuLoad::getCpuLoadOfCore(std::size_t core) const {
@@ -85,6 +77,8 @@ void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, st
     // Make room for new data, swapping the current to last
     std::swap(mCurrentValues, mLastValues);
 
+    CpuInfo cpuInfo;
+
     uint64_t userTime = 0;
     uint64_t kernelTime = 0;
     uint64_t idleTime = 0;
@@ -101,29 +95,18 @@ void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, st
             current_percent = 100.0 - current_percent;
             mCpuLoadPerCore.at(i) = current_percent;
         }
-        mUserTimeDelta = userTime - mLastUserTime;
-        mKernelTimeDelta = kernelTime - mLastKernelTime;
-        mIdleTimeDelta = idleTime - mLastIdleTime;
+        cpuInfo.userTimeDelta = userTime - mLastUserTime;
+        cpuInfo.kernelTimeDelta = kernelTime - mLastKernelTime;
+        cpuInfo.idleTimeDelta = idleTime - mLastIdleTime;
     }
 
     mLastUserTime = userTime;
     mLastKernelTime = kernelTime;
     mLastIdleTime = idleTime;
 
-    double overallTimeDelta = (mUserTimeDelta + mKernelTimeDelta);
+    double overallTimeDelta = (cpuInfo.userTimeDelta + cpuInfo.kernelTimeDelta);
     if (overallTimeDelta == 0.0) {
         overallTimeDelta = 1.0;
-    }
-
-    // userDelta, kernelDelta, idleDelta
-    if (doVerboseJson) {
-        mStateObject.insert(QStringLiteral("userDelta"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
-        mStateObject.insert(QStringLiteral("kernelDelta"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
-        mStateObject.insert(QStringLiteral("idleDelta"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
-    } else {
-        mStateObject.insert(QStringLiteral("1:0"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
-        mStateObject.insert(QStringLiteral("1:1"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
-        mStateObject.insert(QStringLiteral("1:2"), QJsonValue(static_cast<qint64>(mUserTimeDelta)));
     }
 
     // Memory information
@@ -135,23 +118,15 @@ void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, st
     uint64_t const totalPhysicalMemory = statex.ullTotalPhys;
 
     // memory load, total mem, free mem, total page, free page, total virt, free virt
-    if (doVerboseJson) {
-        mStateObject.insert(QStringLiteral("memoryLoad"), QJsonValue(static_cast<qint64>(statex.dwMemoryLoad)));
-        mStateObject.insert(QStringLiteral("memoryTotal"), QJsonValue(static_cast<qint64>(statex.ullTotalPhys)));
-        mStateObject.insert(QStringLiteral("memoryAvail"), QJsonValue(static_cast<qint64>(statex.ullAvailPhys)));
-        mStateObject.insert(QStringLiteral("pageTotal"), QJsonValue(static_cast<qint64>(statex.ullTotalPageFile)));
-        mStateObject.insert(QStringLiteral("pageAvail"), QJsonValue(static_cast<qint64>(statex.ullAvailPageFile)));
-        mStateObject.insert(QStringLiteral("virtualTotal"), QJsonValue(static_cast<qint64>(statex.ullTotalVirtual)));
-        mStateObject.insert(QStringLiteral("virtualAvail"), QJsonValue(static_cast<qint64>(statex.ullAvailVirtual)));
-    } else {
-        mStateObject.insert(QStringLiteral("1:3"), QJsonValue(static_cast<qint64>(statex.dwMemoryLoad)));
-        mStateObject.insert(QStringLiteral("1:4"), QJsonValue(static_cast<qint64>(statex.ullTotalPhys)));
-        mStateObject.insert(QStringLiteral("1:5"), QJsonValue(static_cast<qint64>(statex.ullAvailPhys)));
-        mStateObject.insert(QStringLiteral("1:6"), QJsonValue(static_cast<qint64>(statex.ullTotalPageFile)));
-        mStateObject.insert(QStringLiteral("1:7"), QJsonValue(static_cast<qint64>(statex.ullAvailPageFile)));
-        mStateObject.insert(QStringLiteral("1:8"), QJsonValue(static_cast<qint64>(statex.ullTotalVirtual)));
-        mStateObject.insert(QStringLiteral("1:9"), QJsonValue(static_cast<qint64>(statex.ullAvailVirtual)));
-    }
+    cpuInfo.memoryLoad = statex.dwMemoryLoad;
+    cpuInfo.memoryTotal = statex.ullTotalPhys;
+    cpuInfo.memoryAvail = statex.ullAvailPhys;
+    cpuInfo.pageTotal = statex.ullTotalPageFile;
+    cpuInfo.pageAvail = statex.ullAvailPageFile;
+    cpuInfo.virtualTotal = statex.ullTotalVirtual;
+    cpuInfo.virtualAvail = statex.ullAvailVirtual;
+
+    mStateObject = cpuInfo.toJsonObject(doVerboseJson);
 
     // Per-process information
     ULONG requiredSize = 0;

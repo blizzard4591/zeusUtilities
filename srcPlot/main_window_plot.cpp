@@ -12,6 +12,10 @@
 
 #include <iostream>
 
+#include "cpu_info.h"
+#include "gpu_info.h"
+#include "fps_info.h"
+
 #include "version.h"
 
 MainWindowPlot::MainWindowPlot(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindowPlot) {

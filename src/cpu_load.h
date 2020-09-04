@@ -10,6 +10,7 @@
 #include <QString>
 #include <QStringList>
 
+#include "cpu_info.h"
 #include "process_info.h"
 #include "gpu_load.h"
 
@@ -39,10 +40,6 @@ private:
     uint64_t mLastUserTime;
     uint64_t mLastKernelTime;
     uint64_t mLastIdleTime;
-
-    uint64_t mUserTimeDelta;
-    uint64_t mKernelTimeDelta;
-    uint64_t mIdleTimeDelta;
 
     std::vector<double> mCpuLoadPerCore;
     std::unordered_map<void*, ProcessInfo> mProcessHistory;
