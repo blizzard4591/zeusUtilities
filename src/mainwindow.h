@@ -12,6 +12,7 @@
 #include <QTimer>
 #include <QVector>
 
+#include "round_info.h"
 #include "ping.h"
 #include "cpu_load.h"
 #include "gpu_load.h"
@@ -50,14 +51,6 @@ private:
 
     QVector<QThread*> mPingThreads;
     QVector<Ping*> mPings;
-
-    struct RoundInfo {
-        quint64 remainingPings;
-        QJsonObject outputObject;
-        QString startTime;
-        QJsonArray jsonPingResponses;
-        QVector<QString> pingResponses;
-    };
 
     QHash<quint64, RoundInfo> mRemainingPings;
     QTimer mTimer;

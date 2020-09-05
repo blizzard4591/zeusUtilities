@@ -15,6 +15,7 @@
 #include "cpu_info.h"
 #include "gpu_info.h"
 #include "fps_info.h"
+#include "round_info.h"
 
 #include "version.h"
 
@@ -132,12 +133,13 @@ void MainWindowPlot::parseLog(QString const& log) {
 	QVector<double> dataMemoryLoad;
 	QVector<double> dataMemoryTotal;
 	QVector<double> dataMemoryFree;
+	QVector<double> dataArmaFps;
 
-	quint64 minTimestamp = 18446744073709551615uLL;
-	quint64 maxTimestamp = 0;
+	qint64 minTimestamp = 1844674407370955161LL;
+	qint64 maxTimestamp = 0;
 
 	QVector<std::pair<double, double>> minsAndMaxes;
-	for (int i = 0; i < 3; ++i) {
+	for (int i = 0; i < 4; ++i) {
 		minsAndMaxes.append(std::make_pair(18446744073709551615.0, 0.0));
 	}
 
@@ -147,22 +149,38 @@ void MainWindowPlot::parseLog(QString const& log) {
 		if (line.startsWith(QStringLiteral("#"))) {
 			continue;
 		}
-		QVector<QStringRef> const parts = line.split(QChar(';'));
-		/*
 		
-		# Type 1: State information
-		#    Fields:
-		#     - Time in msecs since epoch
-		#     - userDelta, kernelDelta, idleDelta (100 nanosecond resolution)
-		#     - memory load, total mem, free mem, total page, free page, total virt, free virt (in bytes)
-		#     - RTT and TTL for pings to all targets (8.8.8.8;ts.zeusops.com)
-		# Type 2: Processes information
-		#    Fields:
-		#     - PID, ImageName
-		#     - UserTime, KernelTime
-		#     - WorkingSetSize, PeakWorkingSetSize (both as value and delta to last)
-		#     - GPU utilization, GPU dedicated memory used
-		*/
+		QJsonDocument const roundDoc = QJsonDocument::fromJson(line.toUtf8());
+		if (roundDoc.isNull()) {
+			std::cerr << "Failed to parse line in row #" << lineIndex << "!" << std::endl;
+			continue;
+		}
+
+		bool okay = true;
+		RoundInfo roundInfo = RoundInfo::fromJsonDocument(roundDoc, &okay);
+		if (!okay) {
+			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid round information!" << std::endl;
+			continue;
+		}
+
+		QJsonObject const& armaFps = roundInfo.getArmaFps();
+		FpsInfo armaFpsInfo = FpsInfo::fromJsonObject(armaFps, &okay);
+		if (!okay) {
+			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid fps information!" << std::endl;
+			continue;
+		}
+
+		qint64 const timestamp = roundInfo.getStartTime().toMSecsSinceEpoch();
+		minTimestamp = std::min(minTimestamp, timestamp);
+		maxTimestamp = std::max(maxTimestamp, timestamp);
+		double const key = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(timestamp));
+		dataTimestamps.append(key);
+
+		double const framesPerSecond = armaFpsInfo.framesPerSecond;
+		dataArmaFps.append(framesPerSecond);
+		updateMinMax(minsAndMaxes[3], framesPerSecond);
+
+		/*
 		if (parts.at(0).compare(QStringLiteral("1")) == 0) {
 			// State
 			quint64 const timestamp = parts.at(1).toULongLong();
@@ -194,17 +212,31 @@ void MainWindowPlot::parseLog(QString const& log) {
 			//std::cout << "Parsed a line." << std::endl;
 		} else if (parts.at(0).compare(QStringLiteral("2")) == 0) {
 			// Process Information
-		}
+		}*/
 	}
 
+	std::cout << "Min Timestamp: " << QDateTime::fromMSecsSinceEpoch(minTimestamp).toString("dd.MM.yyyy hh:mm:ss.zzz").toStdString() << " (" << minTimestamp << ")" << std::endl;
+	std::cout << "Max Timestamp: " << QDateTime::fromMSecsSinceEpoch(maxTimestamp).toString("dd.MM.yyyy hh:mm:ss.zzz").toStdString() << std::endl;
+
+	std::cout << "Min FPS: " << minsAndMaxes[3].first << std::endl;
+	std::cout << "Max FPS: " << minsAndMaxes[3].second << std::endl;
+
 	mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
-	mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
-	mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis2);
+	//mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
+	//mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis2);
 
 	{
 		QColor color(Qt::red);
-		mUi->customPlotWidget->graph(0)->setLineStyle(QCPGraph::lsLine);
-		//mUi->customPlotWidget->graph(0)->setPen(QPen(color.lighter(200)));
+		//mUi->customPlotWidget->graph(0)->setLineStyle(QCPGraph::lsLine);
+		mUi->customPlotWidget->graph(0)->setPen(QPen(color.lighter(200)));
+		//mUi->customPlotWidget->graph(0)->setBrush(QBrush(color));
+		mUi->customPlotWidget->graph(0)->setName("ARMA FPS");
+		mUi->customPlotWidget->graph(0)->setData(dataTimestamps, dataArmaFps, true);
+	}
+	/*{
+		QColor color(Qt::red);
+		//mUi->customPlotWidget->graph(0)->setLineStyle(QCPGraph::lsLine);
+		mUi->customPlotWidget->graph(0)->setPen(QPen(color.lighter(200)));
 		//mUi->customPlotWidget->graph(0)->setBrush(QBrush(color));
 		mUi->customPlotWidget->graph(0)->setName("Free Memory");
 		mUi->customPlotWidget->graph(0)->setData(dataTimestamps, dataMemoryFree, true);
@@ -224,7 +256,7 @@ void MainWindowPlot::parseLog(QString const& log) {
 		//mUi->customPlotWidget->graph(2)->setBrush(QBrush(color));
 		mUi->customPlotWidget->graph(2)->setName("Memory Load");
 		mUi->customPlotWidget->graph(2)->setData(dataTimestamps, dataMemoryTotal, true);
-	}
+	}*/
 
 	// configure bottom axis to show date instead of number:
 	QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
@@ -248,8 +280,10 @@ void MainWindowPlot::parseLog(QString const& log) {
 	double const xDiff = xMax - xMin;
 	mUi->customPlotWidget->xAxis->setRange(xMin - xDiff * 0.1, xMax + xDiff * 0.1);
 
-	double const yMin = std::min(std::min(minsAndMaxes[0].first, minsAndMaxes[1].first), minsAndMaxes[2].first);
-	double const yMax = std::max(std::max(minsAndMaxes[0].second, minsAndMaxes[1].second), minsAndMaxes[2].second);
+	//double const yMin = std::min(std::min(minsAndMaxes[0].first, minsAndMaxes[1].first), minsAndMaxes[2].first);
+	//double const yMax = std::max(std::max(minsAndMaxes[0].second, minsAndMaxes[1].second), minsAndMaxes[2].second);
+	double const yMin = minsAndMaxes[3].first;
+	double const yMax = minsAndMaxes[3].second;
 	double const yDiff = yMax - yMin;
 	mUi->customPlotWidget->yAxis->setRange(yMin - yDiff * 0.1, yMax + yDiff * 0.1);
 	// show legend with slightly transparent background brush:

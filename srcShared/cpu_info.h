@@ -28,6 +28,18 @@ public:
     static CpuInfo fromJsonObject(QJsonObject const& object, bool* okay);
     
     friend std::ostream& operator<<(std::ostream& os, const CpuInfo& gi);
+private:
+    static const QString TAG_USERDELTA_L; static const QString TAG_USERDELTA_S;
+    static const QString TAG_KERNELDELTA_L; static const QString TAG_KERNELDELTA_S;
+    static const QString TAG_IDLEDELTA_L; static const QString TAG_IDLEDELTA_S;
+
+    static const QString TAG_MEMORYLOAD_L; static const QString TAG_MEMORYLOAD_S;
+    static const QString TAG_MEMORYTOTAL_L; static const QString TAG_MEMORYTOTAL_S;
+    static const QString TAG_MEMORYAVAIL_L; static const QString TAG_MEMORYAVAIL_S;
+    static const QString TAG_PAGETOTAL_L; static const QString TAG_PAGETOTAL_S;
+    static const QString TAG_PAGEAVAIL_L; static const QString TAG_PAGEAVAIL_S;
+    static const QString TAG_VIRTUALTOTAL_L; static const QString TAG_VIRTUALTOTAL_S;
+    static const QString TAG_VIRTUALAVAIL_L; static const QString TAG_VIRTUALAVAIL_S;
 };
 
 #endif

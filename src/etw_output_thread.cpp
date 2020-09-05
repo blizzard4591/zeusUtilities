@@ -455,7 +455,7 @@ void EtwOutputThread::UpdateConsole(uint32_t processId, EtwProcessInfo const& pr
         if (displayCount > 0) {
             mFpsInfo.presentMode = displayN->PresentMode;
         }
-        updatedFps((quint64)processInfo.mHandle, mFpsInfo);
+        emit updatedFps(processId, mFpsInfo);
     }
 }
 
@@ -469,7 +469,19 @@ EtwOutputThread::~EtwOutputThread() {
 }
 
 void EtwOutputThread::setTargetPid(quint64 pid) {
+    if (targetPid != 0) {
+        if (gProcesses.contains(targetPid)) {
+            gTargetProcessCount--;
+            gProcesses.at(targetPid).mTargetProcess = false;
+        }
+    }
     targetPid = pid;
+    if (targetPid != 0) {
+        if (gProcesses.contains(targetPid)) {
+            gTargetProcessCount++;
+            gProcesses.at(targetPid).mTargetProcess = true;
+        }
+    }
 }
 
 void EtwOutputThread::run() {

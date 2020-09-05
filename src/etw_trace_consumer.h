@@ -37,22 +37,8 @@ SOFTWARE.
 #include <windows.h>
 #include <evntcons.h> // must include after windows.h
 
+#include "present_mode.h"
 #include "trace_consumer.h"
-
-enum class PresentMode {
-    Unknown,
-    Hardware_Legacy_Flip,
-    Hardware_Legacy_Copy_To_Front_Buffer,
-    /* Not detected:
-    Hardware_Direct_Flip,
-    */
-    Hardware_Independent_Flip,
-    Composed_Flip,
-    Composed_Copy_GPU_GDI,
-    Composed_Copy_CPU_GDI,
-    Composed_Composition_Atlas,
-    Hardware_Composed_Independent_Flip,
-};
 
 enum class PresentResult {
     Unknown, Presented, Discarded, Error

@@ -1,7 +1,7 @@
 #ifndef FPS_INFO_H
 #define FPS_INFO_H
 
-#include "etw_trace_consumer.h"
+#include "present_mode.h"
 
 #include <QMetaType>
 #include <QJsonObject>
@@ -27,6 +27,12 @@ public:
 
 	static QString PresentModeToString(PresentMode const& mode);
 private:
+	static const QString TAG_MSPERFRAME_L; static const QString TAG_MSPERFRAME_S;
+	static const QString TAG_FPS_L; static const QString TAG_FPS_S;
+	static const QString TAG_FPSDISPLAYED_L; static const QString TAG_FPSDISPLAYED_S;
+	static const QString TAG_LATENCY_L; static const QString TAG_LATENCY_S;
+	static const QString TAG_PRESENTMODE_L; static const QString TAG_PRESENTMODE_S;
+
 	static int PresentModeToInt(PresentMode const& presentMode);
 	static PresentMode IntToPresentMode(int presentMode);
 };

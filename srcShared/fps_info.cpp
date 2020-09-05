@@ -1,5 +1,21 @@
 #include "fps_info.h"
 
+#include <QFile>
+#include <QJsonDocument>
+
+#define ASSIGN_SHOULD_CONTAIN(target, fullName, shortName) if (object.contains(fullName) || object.contains(shortName)) { target = (object.contains(fullName) ? object.value(fullName) : object.value(shortName)).toDouble(); } else ok = false
+
+const QString FpsInfo::TAG_MSPERFRAME_L = QStringLiteral("msPerFrame");
+const QString FpsInfo::TAG_MSPERFRAME_S = QStringLiteral("f:0");
+const QString FpsInfo::TAG_FPS_L = QStringLiteral("fps");
+const QString FpsInfo::TAG_FPS_S = QStringLiteral("f:1");
+const QString FpsInfo::TAG_FPSDISPLAYED_L = QStringLiteral("fpsDisplayed");
+const QString FpsInfo::TAG_FPSDISPLAYED_S = QStringLiteral("f:2");
+const QString FpsInfo::TAG_LATENCY_L = QStringLiteral("latency");
+const QString FpsInfo::TAG_LATENCY_S = QStringLiteral("f:3");
+const QString FpsInfo::TAG_PRESENTMODE_L = QStringLiteral("presMode");
+const QString FpsInfo::TAG_PRESENTMODE_S = QStringLiteral("f:4");
+
 FpsInfo::FpsInfo() {
 	reset();
 }
@@ -15,31 +31,34 @@ void FpsInfo::reset() {
 QJsonObject FpsInfo::toJsonObject(bool verbose) const {
     QJsonObject result;
     if (verbose) {
-        result.insert(QStringLiteral("msPerFrame"), msPerFrame);
-        result.insert(QStringLiteral("fps"), framesPerSecond);
-        result.insert(QStringLiteral("fpsDisplayed"), fpsDisplayed);
-        result.insert(QStringLiteral("latency"), latency);
-        result.insert(QStringLiteral("presMode"), PresentModeToInt(presentMode));
+        result.insert(TAG_MSPERFRAME_L, msPerFrame);
+        result.insert(TAG_FPS_L, framesPerSecond);
+        result.insert(TAG_FPSDISPLAYED_L, fpsDisplayed);
+        result.insert(TAG_LATENCY_L, latency);
+        result.insert(TAG_PRESENTMODE_L, PresentModeToInt(presentMode));
     } else {
-        result.insert(QStringLiteral("f:0"), msPerFrame);
-        result.insert(QStringLiteral("f:1"), framesPerSecond);
-        result.insert(QStringLiteral("f:2"), fpsDisplayed);
-        result.insert(QStringLiteral("f:3"), latency);
-        result.insert(QStringLiteral("f:4"), PresentModeToInt(presentMode));
+        result.insert(TAG_MSPERFRAME_S, msPerFrame);
+        result.insert(TAG_FPS_S, framesPerSecond);
+        result.insert(TAG_FPSDISPLAYED_S, fpsDisplayed);
+        result.insert(TAG_LATENCY_S, latency);
+        result.insert(TAG_PRESENTMODE_S, PresentModeToInt(presentMode));
     }
     return result;
 }
 
 FpsInfo FpsInfo::fromJsonObject(QJsonObject const& object, bool* okay) {
 	FpsInfo result;
-	bool ok = true;
-	bool subOk = false;
+    bool ok = true;
 
-	result.msPerFrame = (object.contains(QStringLiteral("msPerFrame")) ? object.value(QStringLiteral("msPerFrame")) : object.value(QStringLiteral("f:0"))).toString().toLongLong(&subOk); ok &= subOk;
-	result.framesPerSecond = (object.contains(QStringLiteral("fps")) ? object.value(QStringLiteral("fps")) : object.value(QStringLiteral("f:1"))).toString().toLongLong(&subOk); ok &= subOk;
-	result.fpsDisplayed = (object.contains(QStringLiteral("fpsDisplayed")) ? object.value(QStringLiteral("fpsDisplayed")) : object.value(QStringLiteral("f:2"))).toString().toLongLong(&subOk); ok &= subOk;
-	result.latency = (object.contains(QStringLiteral("latency")) ? object.value(QStringLiteral("latency")) : object.value(QStringLiteral("f:3"))).toString().toLongLong(&subOk); ok &= subOk;
-    result.presentMode = IntToPresentMode((object.contains(QStringLiteral("presMode")) ? object.value(QStringLiteral("presMode")) : object.value(QStringLiteral("f:4"))).toInt());
+    ASSIGN_SHOULD_CONTAIN(result.msPerFrame, TAG_MSPERFRAME_L, TAG_MSPERFRAME_S);
+    ASSIGN_SHOULD_CONTAIN(result.framesPerSecond, TAG_FPS_L, TAG_FPS_S);
+    ASSIGN_SHOULD_CONTAIN(result.fpsDisplayed, TAG_FPSDISPLAYED_L, TAG_FPSDISPLAYED_S);
+    ASSIGN_SHOULD_CONTAIN(result.latency, TAG_LATENCY_L, TAG_LATENCY_S);
+    if (object.contains(TAG_PRESENTMODE_L) || object.contains(TAG_PRESENTMODE_S)) {
+        result.presentMode = IntToPresentMode((object.contains(TAG_PRESENTMODE_L) ? object.value(TAG_PRESENTMODE_L) : object.value(TAG_PRESENTMODE_S)).toInt());
+    } else {
+        ok = false;
+    }
 
 	if (okay != nullptr) {
 		*okay = ok;

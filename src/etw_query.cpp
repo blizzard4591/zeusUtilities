@@ -35,7 +35,7 @@ double QpcToSeconds(uint64_t qpc) {
 
 EtwQuery::EtwQuery() : mEtwProcessThread(), mEtwOutputThread(), mSessionName("zeusDebug"), mIsSessionStarted(false), mTargetPid(0), mFpsInfo() {
 	//
-	if (!QObject::connect(&mEtwOutputThread, SIGNAL(updatedFps(quint64, FpsInfo const&)), this, SLOT(updatedFps(quint64, FpsInfo const&)))) {
+	if (!QObject::connect(&mEtwOutputThread, SIGNAL(updatedFps(quint64, FpsInfo const&)), this, SLOT(updatedFps(quint64, FpsInfo const&)), Qt::QueuedConnection)) {
 		throw;
 	}
 }
@@ -119,6 +119,9 @@ bool EtwQuery::stopTraceSession() {
 
 void EtwQuery::setTargetPid(quint64 pid) {
 	if (mTargetPid != pid) {
+#ifndef NDEBUG
+		std::cout << "Switching target pid on EtwQuery from " << mTargetPid << " to " << pid << "." << std::endl;
+#endif
 		mFpsInfo = FpsInfo();
 		mTargetPid = pid;
 

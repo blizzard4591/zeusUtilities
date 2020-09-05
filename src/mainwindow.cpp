@@ -217,23 +217,7 @@ void MainWindow::onTimerTimeout() {
 		addLogItem(loadStringDbg);
 	}
 
-	RoundInfo roundInfo;
-	roundInfo.startTime = QString::number(now.toMSecsSinceEpoch());
-	roundInfo.remainingPings = mPings.size();
-	roundInfo.pingResponses.resize(mPings.size());
-	//roundInfo.stateData = QStringLiteral("1;").append(roundInfo.startTime).append(";").append(cpuState);
-	if (mUseVerboseJson) {
-		roundInfo.outputObject.insert(QStringLiteral("startTime"), roundInfo.startTime);
-		roundInfo.outputObject.insert(QStringLiteral("cpuState"), cpuState);
-		roundInfo.outputObject.insert(QStringLiteral("processes"), processesStates);
-		roundInfo.outputObject.insert(QStringLiteral("armaFps"), armaFps);
-	} else {
-		roundInfo.outputObject.insert(QStringLiteral("0:0"), roundInfo.startTime);
-		roundInfo.outputObject.insert(QStringLiteral("0:1"), cpuState);
-		roundInfo.outputObject.insert(QStringLiteral("0:2"), processesStates);
-		roundInfo.outputObject.insert(QStringLiteral("0:3"), armaFps);
-	}
-	
+	RoundInfo roundInfo(now, mPings.size(), cpuState, processesStates, armaFps);
 	mRemainingPings.insert(mPingCounter, roundInfo);
 
 	// Pings
@@ -264,22 +248,15 @@ void MainWindow::onPingDone(quint64 roundId, quint64 pingId, PingResponse pingRe
 		throw;
 	}
 	RoundInfo& roundInfo = mRemainingPings.find(roundId).value();
-	roundInfo.remainingPings--;
-	roundInfo.pingResponses[pingId] = pingResponse.hasError ? QStringLiteral(";-1;").append(pingResponse.errorCode) : QStringLiteral(";%1;%2").arg(QString::number(pingResponse.roundTripTime)).arg(QString::number(pingResponse.ttl));
-	roundInfo.jsonPingResponses.append(pingResponse.toJsonObject(mUseVerboseJson));
-
-	if (roundInfo.remainingPings == 0) {
+	roundInfo.addPingResponde(pingResponse.toJsonObject(mUseVerboseJson));
+	
+	if (roundInfo.getRemainingPings() == 0) {
 		if (showLog) {
 			addLogItem(QStringLiteral("Round #%1 of pings done, finishing up.").arg(roundId));
 		}
 
 		if (mOutputFile.isOpen()) {
-			if (mUseVerboseJson) {
-				roundInfo.outputObject.insert(QStringLiteral("pings"), roundInfo.jsonPingResponses);
-			} else {
-				roundInfo.outputObject.insert(QStringLiteral("0:4"), roundInfo.jsonPingResponses);
-			}
-			QJsonDocument roundDocument(roundInfo.outputObject);
+			QJsonDocument roundDocument(roundInfo.toJsonDocument(mUseVerboseJson));
 			mBytesWritten += mOutputFile.write(roundDocument.toJson(QJsonDocument::Compact));
 			mBytesWritten += mOutputFile.write("\r\n");
 
