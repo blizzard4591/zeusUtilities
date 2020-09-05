@@ -133,13 +133,16 @@ void MainWindowPlot::parseLog(QString const& log) {
 	QVector<double> dataMemoryLoad;
 	QVector<double> dataMemoryTotal;
 	QVector<double> dataMemoryFree;
+	
 	QVector<double> dataArmaFps;
+	QVector<double> dataArmaFpsDisplayed;
+	QVector<double> dataArmaLatency;
 
 	qint64 minTimestamp = 1844674407370955161LL;
 	qint64 maxTimestamp = 0;
 
 	QVector<std::pair<double, double>> minsAndMaxes;
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < 7; ++i) {
 		minsAndMaxes.append(std::make_pair(18446744073709551615.0, 0.0));
 	}
 
@@ -176,9 +179,12 @@ void MainWindowPlot::parseLog(QString const& log) {
 		double const key = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(timestamp));
 		dataTimestamps.append(key);
 
-		double const framesPerSecond = armaFpsInfo.framesPerSecond;
-		dataArmaFps.append(framesPerSecond);
-		updateMinMax(minsAndMaxes[3], framesPerSecond);
+		dataArmaFps.append(armaFpsInfo.framesPerSecond);
+		updateMinMax(minsAndMaxes[3], armaFpsInfo.framesPerSecond);
+		dataArmaFpsDisplayed.append(armaFpsInfo.fpsDisplayed);
+		updateMinMax(minsAndMaxes[4], armaFpsInfo.fpsDisplayed);
+		dataArmaLatency.append(armaFpsInfo.latency);
+		updateMinMax(minsAndMaxes[5], armaFpsInfo.latency);
 
 		/*
 		if (parts.at(0).compare(QStringLiteral("1")) == 0) {
@@ -221,71 +227,65 @@ void MainWindowPlot::parseLog(QString const& log) {
 	std::cout << "Min FPS: " << minsAndMaxes[3].first << std::endl;
 	std::cout << "Max FPS: " << minsAndMaxes[3].second << std::endl;
 
-	mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
 	//mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
 	//mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis2);
 
 	{
+		mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
 		QColor color(Qt::red);
-		//mUi->customPlotWidget->graph(0)->setLineStyle(QCPGraph::lsLine);
-		mUi->customPlotWidget->graph(0)->setPen(QPen(color.lighter(200)));
-		//mUi->customPlotWidget->graph(0)->setBrush(QBrush(color));
+		mUi->customPlotWidget->graph(0)->setPen(QPen(color));
 		mUi->customPlotWidget->graph(0)->setName("ARMA FPS");
 		mUi->customPlotWidget->graph(0)->setData(dataTimestamps, dataArmaFps, true);
 	}
-	/*{
-		QColor color(Qt::red);
-		//mUi->customPlotWidget->graph(0)->setLineStyle(QCPGraph::lsLine);
-		mUi->customPlotWidget->graph(0)->setPen(QPen(color.lighter(200)));
-		//mUi->customPlotWidget->graph(0)->setBrush(QBrush(color));
-		mUi->customPlotWidget->graph(0)->setName("Free Memory");
-		mUi->customPlotWidget->graph(0)->setData(dataTimestamps, dataMemoryFree, true);
+	{
+		mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
+		QColor color(Qt::darkMagenta);
+		mUi->customPlotWidget->graph(1)->setPen(QPen(color));
+		mUi->customPlotWidget->graph(1)->setName("ARMA FPS Displayed");
+		mUi->customPlotWidget->graph(1)->setData(dataTimestamps, dataArmaFpsDisplayed, true);
 	}
 	{
-		QColor color(Qt::blue);
-		//mUi->customPlotWidget->graph(1)->setLineStyle(QCPGraph::lsLine);
-		mUi->customPlotWidget->graph(1)->setPen(QPen(color.lighter(200)));
-		//mUi->customPlotWidget->graph(1)->setBrush(QBrush(color));
-		mUi->customPlotWidget->graph(1)->setName("Total Memory");
-		mUi->customPlotWidget->graph(1)->setData(dataTimestamps, dataMemoryTotal, true);
+		mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis2);
+		QColor color(Qt::lightGray);
+		mUi->customPlotWidget->graph(2)->setPen(QPen(color));
+		mUi->customPlotWidget->graph(2)->setName("ARMA Latency");
+		mUi->customPlotWidget->graph(2)->setData(dataTimestamps, dataArmaLatency, true);
 	}
-	{
-		QColor color(Qt::yellow);
-		//mUi->customPlotWidget->graph(2)->setLineStyle(QCPGraph::lsLine);
-		mUi->customPlotWidget->graph(2)->setPen(QPen(color.lighter(200)));
-		//mUi->customPlotWidget->graph(2)->setBrush(QBrush(color));
-		mUi->customPlotWidget->graph(2)->setName("Memory Load");
-		mUi->customPlotWidget->graph(2)->setData(dataTimestamps, dataMemoryTotal, true);
-	}*/
 
 	// configure bottom axis to show date instead of number:
 	QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
-	dateTicker->setDateTimeFormat("hh:mm:ss\ndd.MM.yyyy");
+	dateTicker->setDateTimeFormat("hh:mm:ss\ndd.MM.yyyy\nUTC");
 	dateTicker->setDateTimeSpec(Qt::UTC);
 	mUi->customPlotWidget->xAxis->setTicker(dateTicker);
 	mUi->customPlotWidget->xAxis->setLabel("Time");
 
-	mUi->customPlotWidget->yAxis->setLabel("Load Values");
-	mUi->customPlotWidget->yAxis->setLabel("Utilization in %");
+	mUi->customPlotWidget->yAxis->setLabel("Frames per Second");
+	mUi->customPlotWidget->yAxis2->setLabel("Latency in ms");
 	// make top and right axes visible but without ticks and labels:
 	mUi->customPlotWidget->xAxis2->setVisible(true);
 	mUi->customPlotWidget->yAxis2->setVisible(true);
 	mUi->customPlotWidget->xAxis2->setTicks(false);
-	mUi->customPlotWidget->yAxis2->setTicks(false);
+	mUi->customPlotWidget->yAxis2->setTicks(true);
 	mUi->customPlotWidget->xAxis2->setTickLabels(false);
-	mUi->customPlotWidget->yAxis2->setTickLabels(false);
+	mUi->customPlotWidget->yAxis2->setTickLabels(true);
 	// set axis ranges to show all data:
 	double const xMin = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(minTimestamp));
 	double const xMax = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(maxTimestamp));
 	double const xDiff = xMax - xMin;
-	mUi->customPlotWidget->xAxis->setRange(xMin - xDiff * 0.1, xMax + xDiff * 0.1);
+	mUi->customPlotWidget->xAxis->setRange(xMin - xDiff * 0.05, xMax + xDiff * 0.05);
 
-	//double const yMin = std::min(std::min(minsAndMaxes[0].first, minsAndMaxes[1].first), minsAndMaxes[2].first);
-	//double const yMax = std::max(std::max(minsAndMaxes[0].second, minsAndMaxes[1].second), minsAndMaxes[2].second);
-	double const yMin = minsAndMaxes[3].first;
-	double const yMax = minsAndMaxes[3].second;
+	// Y1
+	double const yMin = std::min(minsAndMaxes[3].first, minsAndMaxes[4].first);
+	double const yMax = std::max(minsAndMaxes[3].second, minsAndMaxes[4].second);
 	double const yDiff = yMax - yMin;
-	mUi->customPlotWidget->yAxis->setRange(yMin - yDiff * 0.1, yMax + yDiff * 0.1);
+	mUi->customPlotWidget->yAxis->setRange(yMin, yMax + yDiff * 0.1);
+
+	// Y2
+	double const y2Min = minsAndMaxes[5].first;
+	double const y2Max = minsAndMaxes[5].second;
+	double const y2Diff = y2Max - y2Min;
+	mUi->customPlotWidget->yAxis2->setRange(y2Min, y2Max + y2Diff * 0.1);
+
 	// show legend with slightly transparent background brush:
 	mUi->customPlotWidget->legend->setVisible(true);
 	mUi->customPlotWidget->legend->setBrush(QColor(255, 255, 255, 150));
