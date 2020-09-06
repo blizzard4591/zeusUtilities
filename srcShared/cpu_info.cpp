@@ -1,6 +1,6 @@
 #include "cpu_info.h"
 
-#define ASSIGN_SHOULD_CONTAIN(target, fullName, shortName) if (object.contains(fullName) || object.contains(shortName)) { target = (object.contains(fullName) ? object.value(fullName) : object.value(shortName)).toString().toLongLong(&subOk); ok &= subOk; } else throw
+#define ASSIGN_SHOULD_CONTAIN(target, fullName, shortName) if (object.contains(fullName) || object.contains(shortName)) { target = (object.contains(fullName) ? object.value(fullName) : object.value(shortName)).toDouble(); } else ok = false
 
 const QString CpuInfo::TAG_USERDELTA_L = QStringLiteral("userDelta");
 const QString CpuInfo::TAG_USERDELTA_S = QStringLiteral("c:0");

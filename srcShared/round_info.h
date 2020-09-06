@@ -29,6 +29,8 @@ public:
 	void addPingResponde(QJsonObject const& pingResponse);
 
 	QDateTime const& getStartTime() const { return mStartTime; }
+	QJsonObject const& getCpuState() const { return mCpuState; }
+	QJsonArray const& getProcessStates() const { return mProcesses; }
 	QJsonObject const& getArmaFps() const { return mArmaFps; }
 
 	QJsonDocument toJsonDocument(bool verbose) const;

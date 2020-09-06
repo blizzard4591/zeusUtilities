@@ -20,6 +20,7 @@
 #include "version.h"
 
 #include "graphs_fps.h"
+#include "graphs_memory.h"
 
 MainWindowPlot::MainWindowPlot(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindowPlot) {
     mUi->setupUi(this);
@@ -189,4 +190,5 @@ void MainWindowPlot::parseLog(QString const& log) {
 	}
 
 	GraphsFps::createGraphs(mUi->plotFps, dataTimestamps, dataArmaFps, dataArmaFpsDisplayed, dataArmaLatency);
+	GraphsMemory::createGraphs(mUi->plotMemory, dataTimestamps, dataMemoryLoad, dataMemoryTotal, dataMemoryFree);
 }
