@@ -23,6 +23,9 @@
       <property name="currentIndex">
        <number>0</number>
       </property>
+      <property name="tabBarAutoHide">
+       <bool>false</bool>
+      </property>
       <widget class="QWidget" name="tabOpen">
        <attribute name="title">
         <string>Log Files</string>
@@ -56,11 +59,31 @@
       </widget>
       <widget class="QWidget" name="tabView">
        <attribute name="title">
-        <string>Plot</string>
+        <string>Plot (FPS)</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <widget class="QCustomPlot" name="customPlotWidget" native="true"/>
+         <widget class="QCustomPlot" name="plotFps" native="true"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tab">
+       <attribute name="title">
+        <string>Plot (Memory)</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="0" column="0">
+         <widget class="QCustomPlot" name="plotMemory" native="true"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tab_2">
+       <attribute name="title">
+        <string>Plot (CPU)</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
+         <widget class="QCustomPlot" name="widget" native="true"/>
         </item>
        </layout>
       </widget>

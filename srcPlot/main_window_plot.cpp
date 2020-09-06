@@ -19,6 +19,8 @@
 
 #include "version.h"
 
+#include "graphs_fps.h"
+
 MainWindowPlot::MainWindowPlot(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindowPlot) {
     mUi->setupUi(this);
 
@@ -138,14 +140,6 @@ void MainWindowPlot::parseLog(QString const& log) {
 	QVector<double> dataArmaFpsDisplayed;
 	QVector<double> dataArmaLatency;
 
-	qint64 minTimestamp = 1844674407370955161LL;
-	qint64 maxTimestamp = 0;
-
-	QVector<std::pair<double, double>> minsAndMaxes;
-	for (int i = 0; i < 7; ++i) {
-		minsAndMaxes.append(std::make_pair(18446744073709551615.0, 0.0));
-	}
-
 	QVector<QStringRef> const lines = log.splitRef(QStringLiteral("\r\n"), Qt::SkipEmptyParts);
 	for (int lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
 		QStringRef const& line = lines.at(lineIndex);
@@ -166,6 +160,13 @@ void MainWindowPlot::parseLog(QString const& log) {
 			continue;
 		}
 
+		QJsonObject const& cpuStateObject = roundInfo.getCpuState();
+		CpuInfo cpuInfo = CpuInfo::fromJsonObject(cpuStateObject, &okay);
+		if (!okay) {
+			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid cpu state information!" << std::endl;
+			continue;
+		}
+
 		QJsonObject const& armaFps = roundInfo.getArmaFps();
 		FpsInfo armaFpsInfo = FpsInfo::fromJsonObject(armaFps, &okay);
 		if (!okay) {
@@ -173,121 +174,19 @@ void MainWindowPlot::parseLog(QString const& log) {
 			continue;
 		}
 
-		qint64 const timestamp = roundInfo.getStartTime().toMSecsSinceEpoch();
-		minTimestamp = std::min(minTimestamp, timestamp);
-		maxTimestamp = std::max(maxTimestamp, timestamp);
-		double const key = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(timestamp));
+		double const key = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(roundInfo.getStartTime().toMSecsSinceEpoch()));
 		dataTimestamps.append(key);
 
+		// Memory
+		dataMemoryLoad.append(cpuInfo.memoryLoad);
+		dataMemoryTotal.append(cpuInfo.memoryTotal);
+		dataMemoryFree.append(cpuInfo.memoryAvail);
+		
+		// Arma FPS
 		dataArmaFps.append(armaFpsInfo.framesPerSecond);
-		updateMinMax(minsAndMaxes[3], armaFpsInfo.framesPerSecond);
 		dataArmaFpsDisplayed.append(armaFpsInfo.fpsDisplayed);
-		updateMinMax(minsAndMaxes[4], armaFpsInfo.fpsDisplayed);
 		dataArmaLatency.append(armaFpsInfo.latency);
-		updateMinMax(minsAndMaxes[5], armaFpsInfo.latency);
-
-		/*
-		if (parts.at(0).compare(QStringLiteral("1")) == 0) {
-			// State
-			quint64 const timestamp = parts.at(1).toULongLong();
-			quint64 const userDelta = parts.at(2).toULongLong();
-			quint64 const kernelDelta = parts.at(3).toULongLong();
-			quint64 const idleDelta = parts.at(4).toULongLong();
-
-			quint64 const memoryLoad = parts.at(5).toULongLong();
-			quint64 const memTotal = parts.at(6).toULongLong();
-			quint64 const memFree = parts.at(7).toULongLong();
-			quint64 const pageTotal = parts.at(8).toULongLong();
-			quint64 const pageFree = parts.at(9).toULongLong();
-			quint64 const virtTotal = parts.at(10).toULongLong();
-			quint64 const virtFree = parts.at(11).toULongLong();
-
-			minTimestamp = std::min(minTimestamp, timestamp);
-			maxTimestamp = std::max(maxTimestamp, timestamp);
-
-			//mUi->customPlotWidget->addGraph();
-			double const key = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(timestamp));
-
-			dataTimestamps.append(key);
-			dataMemoryLoad.append(memoryLoad);
-			updateMinMax(minsAndMaxes[0], memoryLoad);
-			dataMemoryTotal.append(memTotal);
-			updateMinMax(minsAndMaxes[1], memTotal);
-			dataMemoryFree.append(memFree);
-			updateMinMax(minsAndMaxes[2], memFree);
-			//std::cout << "Parsed a line." << std::endl;
-		} else if (parts.at(0).compare(QStringLiteral("2")) == 0) {
-			// Process Information
-		}*/
 	}
 
-	std::cout << "Min Timestamp: " << QDateTime::fromMSecsSinceEpoch(minTimestamp).toString("dd.MM.yyyy hh:mm:ss.zzz").toStdString() << " (" << minTimestamp << ")" << std::endl;
-	std::cout << "Max Timestamp: " << QDateTime::fromMSecsSinceEpoch(maxTimestamp).toString("dd.MM.yyyy hh:mm:ss.zzz").toStdString() << std::endl;
-
-	std::cout << "Min FPS: " << minsAndMaxes[3].first << std::endl;
-	std::cout << "Max FPS: " << minsAndMaxes[3].second << std::endl;
-
-	//mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
-	//mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis2);
-
-	{
-		mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
-		QColor color(Qt::red);
-		mUi->customPlotWidget->graph(0)->setPen(QPen(color));
-		mUi->customPlotWidget->graph(0)->setName("ARMA FPS");
-		mUi->customPlotWidget->graph(0)->setData(dataTimestamps, dataArmaFps, true);
-	}
-	{
-		mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis);
-		QColor color(Qt::darkMagenta);
-		mUi->customPlotWidget->graph(1)->setPen(QPen(color));
-		mUi->customPlotWidget->graph(1)->setName("ARMA FPS Displayed");
-		mUi->customPlotWidget->graph(1)->setData(dataTimestamps, dataArmaFpsDisplayed, true);
-	}
-	{
-		mUi->customPlotWidget->addGraph(mUi->customPlotWidget->xAxis, mUi->customPlotWidget->yAxis2);
-		QColor color(Qt::lightGray);
-		mUi->customPlotWidget->graph(2)->setPen(QPen(color));
-		mUi->customPlotWidget->graph(2)->setName("ARMA Latency");
-		mUi->customPlotWidget->graph(2)->setData(dataTimestamps, dataArmaLatency, true);
-	}
-
-	// configure bottom axis to show date instead of number:
-	QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
-	dateTicker->setDateTimeFormat("hh:mm:ss\ndd.MM.yyyy\nUTC");
-	dateTicker->setDateTimeSpec(Qt::UTC);
-	mUi->customPlotWidget->xAxis->setTicker(dateTicker);
-	mUi->customPlotWidget->xAxis->setLabel("Time");
-
-	mUi->customPlotWidget->yAxis->setLabel("Frames per Second");
-	mUi->customPlotWidget->yAxis2->setLabel("Latency in ms");
-	// make top and right axes visible but without ticks and labels:
-	mUi->customPlotWidget->xAxis2->setVisible(true);
-	mUi->customPlotWidget->yAxis2->setVisible(true);
-	mUi->customPlotWidget->xAxis2->setTicks(false);
-	mUi->customPlotWidget->yAxis2->setTicks(true);
-	mUi->customPlotWidget->xAxis2->setTickLabels(false);
-	mUi->customPlotWidget->yAxis2->setTickLabels(true);
-	// set axis ranges to show all data:
-	double const xMin = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(minTimestamp));
-	double const xMax = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(maxTimestamp));
-	double const xDiff = xMax - xMin;
-	mUi->customPlotWidget->xAxis->setRange(xMin - xDiff * 0.05, xMax + xDiff * 0.05);
-
-	// Y1
-	double const yMin = std::min(minsAndMaxes[3].first, minsAndMaxes[4].first);
-	double const yMax = std::max(minsAndMaxes[3].second, minsAndMaxes[4].second);
-	double const yDiff = yMax - yMin;
-	mUi->customPlotWidget->yAxis->setRange(yMin, yMax + yDiff * 0.1);
-
-	// Y2
-	double const y2Min = minsAndMaxes[5].first;
-	double const y2Max = minsAndMaxes[5].second;
-	double const y2Diff = y2Max - y2Min;
-	mUi->customPlotWidget->yAxis2->setRange(y2Min, y2Max + y2Diff * 0.1);
-
-	// show legend with slightly transparent background brush:
-	mUi->customPlotWidget->legend->setVisible(true);
-	mUi->customPlotWidget->legend->setBrush(QColor(255, 255, 255, 150));
-	mUi->customPlotWidget->replot();
+	GraphsFps::createGraphs(mUi->plotFps, dataTimestamps, dataArmaFps, dataArmaFpsDisplayed, dataArmaLatency);
 }
