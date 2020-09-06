@@ -12,8 +12,6 @@ QString QCPAxisTickerByteFormat::getTickLabel(double tick, const QLocale& locale
     Q_UNUSED(locale);
     Q_UNUSED(formatChar);
     Q_UNUSED(precision);
-    std::cout << "Tick = " << tick << ", formatChar = " << formatChar.toLatin1() << ", precision = " << precision << std::endl;
-
     bool const isDivisible = fmod(tick, 1024.0) < 1.0;
 
     if (tick >= (1024.0 * 1024.0 * 1024.0 * 1024.0)) {
@@ -68,7 +66,6 @@ double QCPAxisTickerByteFormat::cleanMantissaBytes(double input) const {
     switch (mTickStepStrategy) {
     case tssReadability:
     {
-        std::cout << "Magnitude is " << magnitude << " on input " << input << "." << std::endl;
         return pickClosestBytes(mantissa, QVector<double>() << 1.0 << 2.0 << 2.5 << 5.0 << 10.0) * magnitude;
     }
     case tssMeetTickCount:
