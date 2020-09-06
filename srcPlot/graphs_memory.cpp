@@ -14,11 +14,32 @@ bool GraphsMemory::createGraphs(QCustomPlot* plot, QVector<double> const& dataTi
 	plot->xAxis->setTicker(dateTicker);
 	plot->xAxis->setLabel("Time (UTC)");
 
-	QSharedPointer<QCPAxisTickerByteFormat> byteTicker(new QCPAxisTickerByteFormat);
+	QSharedPointer<QCPAxisTickerByteFormat> byteTicker(new QCPAxisTickerByteFormat());
 	plot->yAxis->setTicker(byteTicker);
+	/*
+	QMap<double, QString> ticks;
+	QVector<double> positions;
+	QVector<QString> labels;
+	for (int i = 0; i < 17; ++i) {
+		double pos = i * 1024.0 * 1024.0 * 1024.0;
+		QString const label = QString("%1 GB").arg(i);
+		ticks.insert(pos, label);
+		positions.append(pos);
+		labels.append(label);
+	}
+	byteTicker->setTicks(positions, labels);
+	//byteTicker->addTicks(ticks);
+	plot->xAxis->setTickLabelFont(QFont(QFont().family(), 8));
+	plot->yAxis->setTickLabelFont(QFont(QFont().family(), 8));
+	*/
+
+	plot->yAxis->setVisible(false);
+	plot->yAxis->setTicks(false);
+	plot->yAxis->setTickLabels(false);
 	plot->yAxis->setVisible(true);
 	plot->yAxis->setTicks(true);
 	plot->yAxis->setTickLabels(true);
+
 	{
 		plot->addGraph(plot->xAxis, plot->yAxis);
 		QColor color(Qt::red);
