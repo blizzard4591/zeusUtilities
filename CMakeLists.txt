@@ -52,7 +52,7 @@ find_package(Qt5Network REQUIRED)
 find_package(Qt5PrintSupport REQUIRED)
 
 if(MSVC)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest /MP /Gz")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest /MP")
 
 	add_definitions(/DNOMINMAX)
 	add_definitions(/MP)
