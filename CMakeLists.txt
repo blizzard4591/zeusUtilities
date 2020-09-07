@@ -27,7 +27,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
-SET(CMAKE_PREFIX_PATH "C:/Qt/5.15.0/msvc2019_64/lib/cmake/")
+SET(ZEUSDEBUG_CMAKE_SEARCH_PATH "C:/Qt/5.15.0/msvc2019_64" CACHE PATH "Additional Qt5 search path" )
+
+SET(CMAKE_PREFIX_PATH "${OPENMITTSU_CMAKE_SEARCH_PATH}/lib/cmake/")
 SET(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/cmake/")
 
 set(ZEUSDEBUG_CUSTOM_VERSION_STRING "" CACHE STRING "Disables Git version number checking and uses the custom string instead. Should be of the form 0.1.2-34-567890ab, i.e. major.minor.patch-commitsSinceTag-shortHash")
