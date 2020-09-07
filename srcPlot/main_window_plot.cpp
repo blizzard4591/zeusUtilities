@@ -3,7 +3,9 @@
 
 #include <QDateTime>
 #include <QDir>
+#include <QMap>
 #include <QMessageBox>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QString>
 #include <QStringRef>
@@ -16,11 +18,15 @@
 #include "gpu_info.h"
 #include "fps_info.h"
 #include "round_info.h"
+#include "process_info.h"
+#include "ping_response.h"
 
 #include "version.h"
 
 #include "graphs_fps.h"
 #include "graphs_memory.h"
+#include "graphs_cpu.h"
+#include "graphs_network.h"
 
 MainWindowPlot::MainWindowPlot(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindowPlot) {
     mUi->setupUi(this);
@@ -141,6 +147,13 @@ void MainWindowPlot::parseLog(QString const& log) {
 	QVector<double> dataArmaFpsDisplayed;
 	QVector<double> dataArmaLatency;
 
+	QVector<double> dataPercentUser;
+	QVector<double> dataPercentKernel;
+	QVector<double> dataPercentIdle;
+
+	QMap<QString, QVector<double>> dataPingRoundTripTime;
+
+	bool hadError = false;
 	QVector<QStringRef> const lines = log.splitRef(QStringLiteral("\r\n"), Qt::SkipEmptyParts);
 	for (int lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
 		QStringRef const& line = lines.at(lineIndex);
@@ -148,8 +161,15 @@ void MainWindowPlot::parseLog(QString const& log) {
 			continue;
 		}
 		
-		QJsonDocument const roundDoc = QJsonDocument::fromJson(line.toUtf8());
+		// Fix a bug in earlier version
+		QString lineReplaced = line.toString();
+		static const QRegularExpression regex("\"([^\"]+)\":\"(\\d+);(\\d+)\"");
+		static const QString replace("\"\\1\":{\"iV\":\\2,\"iD\":\\3}");
+		lineReplaced.replace(regex, replace);
+
+		QJsonDocument const roundDoc = QJsonDocument::fromJson(lineReplaced.toUtf8());
 		if (roundDoc.isNull()) {
+			hadError = true;
 			std::cerr << "Failed to parse line in row #" << lineIndex << "!" << std::endl;
 			continue;
 		}
@@ -157,6 +177,7 @@ void MainWindowPlot::parseLog(QString const& log) {
 		bool okay = true;
 		RoundInfo roundInfo = RoundInfo::fromJsonDocument(roundDoc, &okay);
 		if (!okay) {
+			hadError = true;
 			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid round information!" << std::endl;
 			continue;
 		}
@@ -164,6 +185,7 @@ void MainWindowPlot::parseLog(QString const& log) {
 		QJsonObject const& cpuStateObject = roundInfo.getCpuState();
 		CpuInfo cpuInfo = CpuInfo::fromJsonObject(cpuStateObject, &okay);
 		if (!okay) {
+			hadError = true;
 			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid cpu state information!" << std::endl;
 			continue;
 		}
@@ -171,9 +193,41 @@ void MainWindowPlot::parseLog(QString const& log) {
 		QJsonObject const& armaFps = roundInfo.getArmaFps();
 		FpsInfo armaFpsInfo = FpsInfo::fromJsonObject(armaFps, &okay);
 		if (!okay) {
+			hadError = true;
 			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid fps information!" << std::endl;
 			continue;
 		}
+
+		QJsonArray const& processStates = roundInfo.getProcessStates();
+		for (int i = 0; i < processStates.size(); ++i) {
+			QJsonObject const pState = processStates.at(i).toObject();
+			ProcessInfo const processInfo = ProcessInfo::fromJsonObject(pState, &okay);
+			if (!okay) {
+				std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid process state information at sub-index " << i << "!" << std::endl;
+				continue;
+			}
+		}
+
+		QJsonArray const& pingReponses = roundInfo.getPingResponses();
+		for (int i = 0; i < pingReponses.size(); ++i) {
+			QJsonObject const reponse = pingReponses.at(i).toObject();
+			PingResponse const pingResponse = PingResponse::fromJsonObject(reponse, &okay);
+			if (!okay) {
+				hadError = true;
+				std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid ping response information at sub-index " << i << "!" << std::endl;
+				continue;
+			}
+			if (!dataPingRoundTripTime.contains(pingResponse.target)) {
+				if (lineIndex != 0) {
+					hadError = true;
+					std::cerr << "Failed to parse line in row #" << lineIndex << ", ping response information at sub-index " << i << " contains new target!" << std::endl;
+					continue;
+				}
+				dataPingRoundTripTime.insert(pingResponse.target, QVector<double>());
+			}
+			dataPingRoundTripTime.find(pingResponse.target).value().append(pingResponse.hasError ? -1.0 : pingResponse.roundTripTime);
+		}
+		
 
 		double const key = QCPAxisTickerDateTime::dateTimeToKey(QDateTime::fromMSecsSinceEpoch(roundInfo.getStartTime().toMSecsSinceEpoch()));
 		dataTimestamps.append(key);
@@ -187,8 +241,20 @@ void MainWindowPlot::parseLog(QString const& log) {
 		dataArmaFps.append(armaFpsInfo.framesPerSecond);
 		dataArmaFpsDisplayed.append(armaFpsInfo.fpsDisplayed);
 		dataArmaLatency.append(armaFpsInfo.latency);
+
+		// CPU Times (global)
+		double const deltaSum = cpuInfo.idleTimeDelta + cpuInfo.kernelTimeDelta + cpuInfo.userTimeDelta;
+		dataPercentUser.append((cpuInfo.userTimeDelta / deltaSum) * 100.0);
+		dataPercentKernel.append((cpuInfo.kernelTimeDelta / deltaSum) * 100.0);
+		dataPercentIdle.append((cpuInfo.idleTimeDelta / deltaSum) * 100.0);
+	}
+
+	if (hadError) {
+		return;
 	}
 
 	GraphsFps::createGraphs(mUi->plotFps, dataTimestamps, dataArmaFps, dataArmaFpsDisplayed, dataArmaLatency);
 	GraphsMemory::createGraphs(mUi->plotMemory, dataTimestamps, dataMemoryLoad, dataMemoryTotal, dataMemoryFree);
+	GraphsCpu::createGraphs(mUi->plotCpu, dataTimestamps, dataPercentUser, dataPercentKernel, dataPercentIdle);
+	GraphsNetwork::createGraphs(mUi->plotNetwork, dataTimestamps, dataPingRoundTripTime);
 }

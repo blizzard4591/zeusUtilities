@@ -32,6 +32,7 @@ public:
 	QJsonObject const& getCpuState() const { return mCpuState; }
 	QJsonArray const& getProcessStates() const { return mProcesses; }
 	QJsonObject const& getArmaFps() const { return mArmaFps; }
+	QJsonArray const& getPingResponses() const { return mPingResponses; }
 
 	QJsonDocument toJsonDocument(bool verbose) const;
 	static RoundInfo fromJsonDocument(QJsonDocument const& document, bool* okay);

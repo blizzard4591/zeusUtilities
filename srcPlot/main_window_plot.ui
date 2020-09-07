@@ -83,7 +83,17 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="0">
-         <widget class="QCustomPlot" name="widget" native="true"/>
+         <widget class="QCustomPlot" name="plotCpu" native="true"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tab_3">
+       <attribute name="title">
+        <string>Plot (Network)</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="0">
+         <widget class="QCustomPlot" name="plotNetwork" native="true"/>
         </item>
        </layout>
       </widget>

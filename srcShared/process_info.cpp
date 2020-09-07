@@ -1,6 +1,10 @@
 #include "process_info.h"
 
 #define ASSIGN_IF_CONTAINED(target, fullName, shortName) if (object.contains(fullName) || object.contains(shortName)) target = DeltaValueST::fromJsonObject((object.contains(fullName) ? object.value(fullName) : object.value(shortName)).toObject(), &subOk); ok &= subOk
+#define ASSIGN_SHOULD_CONTAIN(target, fullName, shortName) if (object.contains(fullName) || object.contains(shortName)) { target = (object.contains(fullName) ? object.value(fullName) : object.value(shortName)).toDouble(); } else ok = false
+#define ASSIGN_SHOULD_CONTAIN_FULL(target, fullName) if (object.contains(fullName)) { target = object.value(fullName).toDouble(); } else ok = false
+
+#define ASSIGN_SHOULD_CONTAIN_LI(target, fullName, shortName) if (object.contains(fullName) || object.contains(shortName)) { target = DeltaValueLI::fromJsonObject((object.contains(fullName) ? object.value(fullName) : object.value(shortName)).toObject(), &subOk); ok &= subOk; } else ok = false
 
 const QString DeltaValueLI::TAG_V = QStringLiteral("iV");
 const QString DeltaValueLI::TAG_D = QStringLiteral("iD");
@@ -75,8 +79,9 @@ DeltaValueLI DeltaValueLI::fromJsonObject(QJsonObject const& object, bool* okay)
     bool ok = true;
     bool subOk = false;
     DeltaValueLI result;
-    result.value.QuadPart = object.value(TAG_V).toString().toULongLong(&subOk); ok &= subOk;
-    result.delta = object.value(TAG_D).toString().toULongLong(&subOk); ok &= subOk;
+
+    ASSIGN_SHOULD_CONTAIN_FULL(result.value.QuadPart, TAG_V);
+    ASSIGN_SHOULD_CONTAIN_FULL(result.delta, TAG_D);
     if (okay != nullptr) {
         *okay = ok;
     }
@@ -99,8 +104,8 @@ DeltaValueST DeltaValueST::fromJsonObject(QJsonObject const& object, bool* okay)
     bool ok = true;
     bool subOk = false;
     DeltaValueST result;
-    result.value = object.value(TAG_V).toString().toULongLong(&subOk); ok &= subOk;
-    result.delta = object.value(TAG_D).toString().toULongLong(&subOk); ok &= subOk;
+    ASSIGN_SHOULD_CONTAIN_FULL(result.value, TAG_V);
+    ASSIGN_SHOULD_CONTAIN_FULL(result.delta, TAG_D);
     if (okay != nullptr) {
         *okay = ok;
     }
@@ -121,8 +126,8 @@ QJsonObject ProcessInfo::toJsonObject(bool beVerbose) const {
     if (beVerbose) {
         result.insert(TAG_PID_L, QJsonValue((qint64)UniqueProcessId));
         result.insert(TAG_IMAGENAME_L, QJsonValue(ImageName));
-        result.insert(TAG_USERTIME_L, QJsonValue(UserTime.toQString()));
-        result.insert(TAG_KERNELTIME_L, QJsonValue(KernelTime.toQString()));
+        result.insert(TAG_USERTIME_L, QJsonValue(UserTime.toJsonObject(beVerbose)));
+        result.insert(TAG_KERNELTIME_L, QJsonValue(KernelTime.toJsonObject(beVerbose)));
 
         result.insert(TAG_WORKINGSIZE_L, QJsonValue(WorkingSetSize.toJsonObject(beVerbose)));
         result.insert(TAG_PEAKWORKINGSIZE_L, QJsonValue(PeakWorkingSetSize.toJsonObject(beVerbose)));
@@ -132,8 +137,8 @@ QJsonObject ProcessInfo::toJsonObject(bool beVerbose) const {
     } else {
         result.insert(TAG_PID_S, QJsonValue((qint64)UniqueProcessId));
         result.insert(TAG_IMAGENAME_S, QJsonValue(ImageName));
-        result.insert(TAG_USERTIME_S, QJsonValue(UserTime.toQString()));
-        result.insert(TAG_KERNELTIME_S, QJsonValue(KernelTime.toQString()));
+        result.insert(TAG_USERTIME_S, QJsonValue(UserTime.toJsonObject(beVerbose)));
+        result.insert(TAG_KERNELTIME_S, QJsonValue(KernelTime.toJsonObject(beVerbose)));
 
         result.insert(TAG_WORKINGSIZE_S, QJsonValue(WorkingSetSize.toJsonObject(beVerbose)));
         result.insert(TAG_PEAKWORKINGSIZE_S, QJsonValue(PeakWorkingSetSize.toJsonObject(beVerbose)));
@@ -148,13 +153,15 @@ ProcessInfo ProcessInfo::fromJsonObject(QJsonObject const& object, bool* okay) {
     bool ok = true;
     bool subOk = false;
 
-    quint64 const pid = (object.contains(TAG_PID_L) ? object.value(TAG_PID_L) : object.value(TAG_PID_S)).toString().toULongLong(&subOk); ok &= subOk;
-    QString const imageName = (object.contains(TAG_IMAGENAME_L) ? object.value(TAG_IMAGENAME_L) : object.value(TAG_IMAGENAME_S)).toString();
+    quint64 pid = 0;
+    ASSIGN_SHOULD_CONTAIN(pid, TAG_PID_L, TAG_PID_S);
+    QString imageName;
+    ASSIGN_SHOULD_CONTAIN(imageName, TAG_IMAGENAME_L, TAG_IMAGENAME_S);
 
     ProcessInfo result(imageName, (HANDLE)pid);
     
-    result.UserTime = DeltaValueLI::fromJsonObject((object.contains(TAG_USERTIME_L) ? object.value(TAG_USERTIME_L) : object.value(TAG_USERTIME_S)).toObject(), &subOk); ok &= subOk;
-    result.KernelTime = DeltaValueLI::fromJsonObject((object.contains(TAG_KERNELTIME_L) ? object.value(TAG_KERNELTIME_L) : object.value(TAG_KERNELTIME_S)).toObject(), &subOk); ok &= subOk;
+    ASSIGN_SHOULD_CONTAIN_LI(result.UserTime, TAG_USERTIME_L, TAG_USERTIME_S);
+    ASSIGN_SHOULD_CONTAIN_LI(result.KernelTime, TAG_KERNELTIME_L, TAG_KERNELTIME_S);
 
     ASSIGN_IF_CONTAINED(result.PeakVirtualSize, TAG_PEAKVIRTSIZE_L, TAG_PEAKVIRTSIZE_S);
     ASSIGN_IF_CONTAINED(result.VirtualSize, TAG_VIRTSIZE_L, TAG_VIRTSIZE_S);

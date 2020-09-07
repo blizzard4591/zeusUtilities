@@ -1,8 +1,5 @@
 #include "fps_info.h"
 
-#include <QFile>
-#include <QJsonDocument>
-
 #define ASSIGN_SHOULD_CONTAIN(target, fullName, shortName) if (object.contains(fullName) || object.contains(shortName)) { target = (object.contains(fullName) ? object.value(fullName) : object.value(shortName)).toDouble(); } else ok = false
 
 const QString FpsInfo::TAG_MSPERFRAME_L = QStringLiteral("msPerFrame");
