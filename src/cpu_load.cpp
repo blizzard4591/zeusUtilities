@@ -180,8 +180,9 @@ void CpuLoad::update(double minCpuUtil, double minMemUtil, double minGpuUtil, st
             bool const isArma64Bit = mProcessHistory.at(handle).ImageName.compare(QStringLiteral("arma3_x64.exe"), Qt::CaseInsensitive) == 0;
 
             if (mProcessHistory.at(handle).ImageName.contains(QStringLiteral("arma3")) || (percentLoad >= minCpuUtil) || (percentMemory >= minMemUtil) || processUsesGpuMoreThanXPercent || processUsesGpuMemoryMoreThan100MB) {
-                if ((mProcessHistory.at(handle).ImageName.compare(QStringLiteral("Memory Compression")) != 0) && (mProcessHistory.at(handle).ImageName.compare(QStringLiteral("dwm.exe")) != 0)) {
+                if ((mProcessHistory.at(handle).ImageName.compare(QStringLiteral("Memory Compression")) != 0) && (mProcessHistory.at(handle).ImageName.compare(QStringLiteral("dwm.exe")) != 0) && (((uint64_t)handle) != 0)) {
                     mProcessesArray.append(mProcessHistory.at(handle).toJsonObject(doVerboseJson));
+                    std::cout << "Process: " << mProcessHistory.at(handle) << std::endl;
                 }
             }
 

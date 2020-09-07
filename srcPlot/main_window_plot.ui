@@ -48,13 +48,6 @@
         <item>
          <widget class="QListWidget" name="listWidgetLogFiles"/>
         </item>
-        <item>
-         <widget class="QPushButton" name="btnOpenLog">
-          <property name="text">
-           <string>Open Log</string>
-          </property>
-         </widget>
-        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="tabView">

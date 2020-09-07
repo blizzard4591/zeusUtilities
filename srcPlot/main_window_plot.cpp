@@ -28,7 +28,7 @@
 #include "graphs_cpu.h"
 #include "graphs_network.h"
 
-MainWindowPlot::MainWindowPlot(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindowPlot) {
+MainWindowPlot::MainWindowPlot(QWidget *parent) : QMainWindow(parent), mUi(new Ui::MainWindowPlot), mIsChangingPath(false) {
     mUi->setupUi(this);
 
 	this->setWindowTitle(QStringLiteral("ZeusOps Debug Utility Plotter v").append(QString::fromStdString(Version::versionWithTagString())));
@@ -39,7 +39,6 @@ MainWindowPlot::MainWindowPlot(QWidget *parent) : QMainWindow(parent), mUi(new U
 	QObject::connect(mUi->actionOpen_Log_Directory, SIGNAL(triggered()), this, SLOT(menuFileOpenLogDirectoryOnClick()));
 	QObject::connect(mUi->actionQuit, SIGNAL(triggered()), this, SLOT(menuFileQuitOnClick()));
 
-	QObject::connect(mUi->btnOpenLog, SIGNAL(clicked(bool)), this, SLOT(listWidgetLogFilesOnCurrentItemChanged()));
 	QObject::connect(mUi->edtOutputDir, SIGNAL(textChanged(QString const&)), this, SLOT(logFileLocationChanged()));
 	QObject::connect(mUi->listWidgetLogFiles, SIGNAL(currentItemChanged(QListWidgetItem*, QListWidgetItem*)), this, SLOT(listWidgetLogFilesOnCurrentItemChanged()));
 
@@ -53,6 +52,8 @@ MainWindowPlot::MainWindowPlot(QWidget *parent) : QMainWindow(parent), mUi(new U
 			mUi->edtOutputDir->setText(location.absolutePath());
 		}
 	}
+
+	closeLogFile();
 }
 
 MainWindowPlot::~MainWindowPlot() {
@@ -101,8 +102,12 @@ void MainWindowPlot::menuFileQuitOnClick() {
 }
 
 void MainWindowPlot::logFileLocationChanged() {
-	mUi->listWidgetLogFiles->clear();
+	closeLogFile();
+
+	mIsChangingPath = true;
+
 	mLogFiles.clear();
+	mUi->listWidgetLogFiles->clear();
 
 	QDir dir(mUi->edtOutputDir->text());
 	if (dir.exists()) {
@@ -111,12 +116,15 @@ void MainWindowPlot::logFileLocationChanged() {
 			mUi->listWidgetLogFiles->addItem(mLogFiles.at(i).fileName());
 		}
 	}
+
+	mIsChangingPath = false;
 }
 
 void MainWindowPlot::listWidgetLogFilesOnCurrentItemChanged() {
-	if (mCurrentLogFile.isOpen()) {
-		mCurrentLogFile.close();
+	if (mIsChangingPath) {
+		return;
 	}
+	closeLogFile();
 
 	int const currentRow = mUi->listWidgetLogFiles->currentRow();
 	if (currentRow < mLogFiles.size()) {
@@ -126,14 +134,10 @@ void MainWindowPlot::listWidgetLogFilesOnCurrentItemChanged() {
 			QString const log = input.readAll();
 			parseLog(log);
 		} else {
+			QMessageBox::warning(this, tr("Error while opening log file"), tr("Could not open selected log file!\nCheck that you have not selected a privileged folder and that your AntiVirus is not blocking access."));
 			std::cerr << "Failed to open file: " << mLogFiles.at(currentRow).absoluteFilePath().toStdString() << std::endl;
 		}
 	}
-}
-
-void updateMinMax(std::pair<double, double>& pair, double value) {
-	pair.first = std::min(pair.first, value);
-	pair.second = std::max(pair.second, value);
 }
 
 void MainWindowPlot::parseLog(QString const& log) {
@@ -170,6 +174,7 @@ void MainWindowPlot::parseLog(QString const& log) {
 		QJsonDocument const roundDoc = QJsonDocument::fromJson(lineReplaced.toUtf8());
 		if (roundDoc.isNull()) {
 			hadError = true;
+			QMessageBox::warning(this, tr("Error while parsing log file"), tr("Could not parse the selected log file!\nLine %1 is not a valid JSON document!").arg(lineIndex));
 			std::cerr << "Failed to parse line in row #" << lineIndex << "!" << std::endl;
 			continue;
 		}
@@ -178,6 +183,7 @@ void MainWindowPlot::parseLog(QString const& log) {
 		RoundInfo roundInfo = RoundInfo::fromJsonDocument(roundDoc, &okay);
 		if (!okay) {
 			hadError = true;
+			QMessageBox::warning(this, tr("Error while parsing log file"), tr("Could not parse the selected log file!\nLine %1 has invalid round information!").arg(lineIndex));
 			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid round information!" << std::endl;
 			continue;
 		}
@@ -186,6 +192,7 @@ void MainWindowPlot::parseLog(QString const& log) {
 		CpuInfo cpuInfo = CpuInfo::fromJsonObject(cpuStateObject, &okay);
 		if (!okay) {
 			hadError = true;
+			QMessageBox::warning(this, tr("Error while parsing log file"), tr("Could not parse the selected log file!\nLine %1 has invalid cpu state information!").arg(lineIndex));
 			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid cpu state information!" << std::endl;
 			continue;
 		}
@@ -194,6 +201,7 @@ void MainWindowPlot::parseLog(QString const& log) {
 		FpsInfo armaFpsInfo = FpsInfo::fromJsonObject(armaFps, &okay);
 		if (!okay) {
 			hadError = true;
+			QMessageBox::warning(this, tr("Error while parsing log file"), tr("Could not parse the selected log file!\nLine %1 has invalid FPS information!").arg(lineIndex));
 			std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid fps information!" << std::endl;
 			continue;
 		}
@@ -203,7 +211,11 @@ void MainWindowPlot::parseLog(QString const& log) {
 			QJsonObject const pState = processStates.at(i).toObject();
 			ProcessInfo const processInfo = ProcessInfo::fromJsonObject(pState, &okay);
 			if (!okay) {
+				QMessageBox::warning(this, tr("Error while parsing log file"), tr("Could not parse the selected log file!\nLine %1 has invalid process state information at sub-index %2!").arg(lineIndex).arg(i));
 				std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid process state information at sub-index " << i << "!" << std::endl;
+				continue;
+			}
+			if (processInfo.UniqueProcessId == 0) {
 				continue;
 			}
 		}
@@ -214,12 +226,14 @@ void MainWindowPlot::parseLog(QString const& log) {
 			PingResponse const pingResponse = PingResponse::fromJsonObject(reponse, &okay);
 			if (!okay) {
 				hadError = true;
+				QMessageBox::warning(this, tr("Error while parsing log file"), tr("Could not parse the selected log file!\nLine %1 has invalid ping response information at sub-index %2!").arg(lineIndex).arg(i));
 				std::cerr << "Failed to parse line in row #" << lineIndex << ", invalid ping response information at sub-index " << i << "!" << std::endl;
 				continue;
 			}
 			if (!dataPingRoundTripTime.contains(pingResponse.target)) {
 				if (lineIndex != 0) {
 					hadError = true;
+					QMessageBox::warning(this, tr("Error while parsing log file"), tr("Could not parse the selected log file!\nLine %1 has ping response information at sub-index %2 that introduces a new target!").arg(lineIndex).arg(i));
 					std::cerr << "Failed to parse line in row #" << lineIndex << ", ping response information at sub-index " << i << " contains new target!" << std::endl;
 					continue;
 				}
@@ -257,4 +271,63 @@ void MainWindowPlot::parseLog(QString const& log) {
 	GraphsMemory::createGraphs(mUi->plotMemory, dataTimestamps, dataMemoryLoad, dataMemoryTotal, dataMemoryFree);
 	GraphsCpu::createGraphs(mUi->plotCpu, dataTimestamps, dataPercentUser, dataPercentKernel, dataPercentIdle);
 	GraphsNetwork::createGraphs(mUi->plotNetwork, dataTimestamps, dataPingRoundTripTime);
+
+	logFileOpened();
+}
+
+void MainWindowPlot::logFileOpened() {
+	mUi->tabWidget->setTabEnabled(0, true);
+	mUi->tabWidget->setTabEnabled(1, true);
+	mUi->tabWidget->setTabEnabled(2, true);
+	mUi->tabWidget->setTabEnabled(3, true);
+	mUi->tabWidget->setTabEnabled(4, true);
+	mUi->tabWidget->setCurrentIndex(1);
+}
+
+void MainWindowPlot::logFileClosed() {
+	mUi->tabWidget->setCurrentIndex(0);
+	mUi->tabWidget->setTabEnabled(0, true);
+	mUi->tabWidget->setTabEnabled(1, false);
+	mUi->tabWidget->setTabEnabled(2, false);
+	mUi->tabWidget->setTabEnabled(3, false);
+	mUi->tabWidget->setTabEnabled(4, false);
+}
+
+void MainWindowPlot::closeLogFile() {
+	if (mCurrentLogFile.isOpen()) {
+		mCurrentLogFile.close();
+	}
+	logFileClosed();
+
+	// CPU Graph Reset
+	for (int g = 0; g < mUi->plotCpu->graphCount(); ++g) {
+		mUi->plotCpu->graph(g)->data().clear();
+	}
+	mUi->plotCpu->clearGraphs();
+	mUi->plotCpu->clearPlottables();
+	mUi->plotCpu->replot();
+
+	// FPS Graph Reset
+	for (int g = 0; g < mUi->plotFps->graphCount(); ++g) {
+		mUi->plotFps->graph(g)->data().clear();
+	}
+	mUi->plotFps->clearGraphs();
+	mUi->plotFps->clearPlottables();
+	mUi->plotFps->replot();
+
+	// Memory Graph Reset
+	for (int g = 0; g < mUi->plotMemory->graphCount(); ++g) {
+		mUi->plotMemory->graph(g)->data().clear();
+	}
+	mUi->plotMemory->clearGraphs();
+	mUi->plotMemory->clearPlottables();
+	mUi->plotMemory->replot();
+
+	// Network Graph Reset
+	for (int g = 0; g < mUi->plotNetwork->graphCount(); ++g) {
+		mUi->plotNetwork->graph(g)->data().clear();
+	}
+	mUi->plotNetwork->clearGraphs();
+	mUi->plotNetwork->clearPlottables();
+	mUi->plotNetwork->replot();
 }

@@ -32,11 +32,16 @@ public slots:
 private:
     Ui::MainWindowPlot* mUi;
 
+    bool mIsChangingPath;
     QFileInfoList mLogFiles;
     QFile mCurrentLogFile;
 
     QString formatSize(quint64 number) const;
     void parseLog(QString const& log);
+
+    void logFileOpened();
+    void logFileClosed();
+    void closeLogFile();
 };
 
 #endif
